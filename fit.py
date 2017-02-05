@@ -130,7 +130,7 @@ def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
         dfluxd = np.random.randn(n_wave) * unc
         fluxd_i = fluxd + dfluxd
 
-        scales[i], chi2[i] = fit_one(fluxd, unc, mfluxd, method=method,
+        scales[i], chi2[i] = fit_one(fluxd_i, unc, mfluxd, method=method,
                                      guess=best, **kwargs)
 
     return scales, chi2
