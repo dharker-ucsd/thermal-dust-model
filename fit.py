@@ -131,6 +131,6 @@ def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
         fluxd_i = fluxd + dfluxd
 
         scales[i], chi2[i] = fit_one(fluxd, unc, mfluxd, method=method,
-                                     guess=guess, **kwargs)
+                                     guess=best, **kwargs)
 
     return scales, chi2
