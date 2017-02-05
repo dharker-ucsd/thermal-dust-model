@@ -87,7 +87,6 @@ def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
 
       2. Fit that spectrum, and store the result.
 
-
     Parameters
     ----------
     fluxd : ndarray
