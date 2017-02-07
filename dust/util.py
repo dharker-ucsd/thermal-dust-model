@@ -1,3 +1,5 @@
+import numpy as np
+
 def interp_model2comet(wave_comet, wave_model, fluxd_model):
         """Interpolate the model spectrum to the same wavelength grid as the comet
         spectrum.
@@ -37,12 +39,12 @@ def bbody(wave,temp,sigmaT=None,S=1.,sigmaS=None):
       A linear array of wavelength values in microns
     temp : float or array
       A temperature in Kelvin
-    sigmaT : boolean(?)
+    sigmaT : float
       If set to True, the error of the resulting curve will be computed.
     S : float
       A multiplier to scale the resulting curve.
-    sigmaS : boolean(?)
-      If set to True, the error of the resulting curve will be computed.
+    sigmaS : float
+      If set, the error in the .
 
     Return
     ------
