@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import numpy as np
 
 __all__ = [
     'Solid',
@@ -16,7 +17,7 @@ class PorosityModel(ABC):
     """
 
     @abstractmethod
-    def __call___(self, a):
+    def __call__(self, a):
         """Porosity, i.e., vacuum fraction, for grain size `a`."""
         pass
 
@@ -25,26 +26,16 @@ class Solid(PorosityModel):
     def __init__(self):
         pass
     
-    @abstractmethod
-    def __call___(self, a):
+    def __call__(self, a):
         """Porosity, i.e., vacuum fraction, for grain size `a`.
 
         Parameters
         ----------
-        a : astropy Quanitity
-          Grain radius.  Porosity is 0 for all `a`.
+        a : float or array
+          Grain radius in μm.  Porosity is 0 for all `a`.
 
         """
-
-        import astropy.unit as u
-
-        assert isinstance(a, u.Quantity)
-        assert a.unit.is_equivalent(u.um)
-
-        # astropy magic returns a Quantity for zeros_like(a).  Use
-        # .value to get the magnitude.
-        p = np.zeros_like(a).value
-        return p
+        return np.zeros_like(a)
 
 class FractallyPorous(PorosityModel):
     """Fractally porous dust.
@@ -52,40 +43,49 @@ class FractallyPorous(PorosityModel):
     Parameters
     ----------
     a0 : Quantity
-      The radius of the smallest grain unit.  Porosity for `a <= a0`
+      The radius of the smallest grain unit in μm.  Porosity for `a <= a0`
       will be 0.
     D : float
       Fractal dimension.  Must be `0 <= D <= 3.0`.
 
     """
     def __init__(self, a0, D):
-        import astropy.units as u
-        
-        assert isinstance(a0, u.Quantity)
-        assert a0.unit.is_equivalent(u.um)
-        assert isinstance(D, (float, int))
-        
         self.a0 = a0
         self.D = D
     
-    def __call___(self, a):
+    def __call__(self, a):
         """Porosity, i.e., vacuum fraction, for grain size `a`.
 
         Parameters
         ----------
-        a : astropy Quanitity
-          Grain radius.
+        a : float or array
+          Grain radius in μm.
 
         """
+        return 1 - (a / self.a0)**(self.D - 3)
 
-        import astropy.unit as u
+class ConstantPorosity(PorosityModel):
+    """Uniform porosity for all grain sizes.
 
-        assert isinstance(a, u.Quantity)
-        assert a.unit.is_equivalent(u.um)
+    Parameters
+    ----------
+    p : float
+      The porosity to use for all grain sizes.
 
-        p = 1 - (a / self.a0).value**(self.D - 3)
-        
-        return p
+    """
+    def __init__(self, p):
+        self.p = p
+    
+    def __call__(self, a):
+        """Porosity, i.e., vacuum fraction, for grain size `a`.
+
+        Parameters
+        ----------
+        a : float or array
+          Grain radius in μm.
+
+        """
+        return self.p * np.ones_like(a)
 
 class Material:
     """A single instance of a material.
@@ -94,12 +94,33 @@ class Material:
     ----------
     name : string
       The name of the material.
-    rho0 : astropy Quantity
-      The bulk material density.
+    rho0 : float
+      The bulk material density in g/cm3.
     porosity : PorosityModel, optional
       A description of the porosity as a function of size.
     
     """
 
     def __init__(self, name, rho0, porosity=Solid()):
-        
+        self.name = name
+        self.rho0 = rho0
+        self.porosity = porosity
+
+    def mass(self, a):
+        """Grain mass for radius `a`.
+
+        Parameters
+        ----------
+        a : float or array
+          Grain radius in μm.
+
+        Returns
+        -------
+        m : float or ndarray
+          Grain mass in g.
+
+        """
+        from numpy import pi
+        return 4e-12 / 3 * pi * a**3 * self.rho0 * (1 - self.porosity(a))
+
+    
