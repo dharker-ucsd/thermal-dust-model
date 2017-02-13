@@ -1,3 +1,5 @@
+import numpy as np
+
 def interp_model2comet(wave_comet, wave_model, fluxd_model):
         """Interpolate the model spectrum to the same wavelength grid as the comet
         spectrum.
@@ -37,12 +39,12 @@ def bbody(wave,temp,sigmaT=None,S=1.,sigmaS=None):
       A linear array of wavelength values in microns
     temp : float or array
       A temperature in Kelvin
-    sigmaT : boolean(?)
+    sigmaT : float
       If set to True, the error of the resulting curve will be computed.
     S : float
       A multiplier to scale the resulting curve.
-    sigmaS : boolean(?)
-      If set to True, the error of the resulting curve will be computed.
+    sigmaS : float
+      If set, the error in the .
 
     Return
     ------
@@ -55,14 +57,14 @@ def bbody(wave,temp,sigmaT=None,S=1.,sigmaS=None):
     """
     bbflux = wave*0.
 
-    c1 = 1.1926926e8                        # W m^-2 micron^-1 st^-1
-    c2 = 14388.3
+    c1 = 1.1910428681415875e8	            # W m^-2 micron^-1 st^-1
+    c2 = 14387.7695998
     val = c2/wave/temp
     good = np.where(val < 88)               # avoid floating underflow
     bbflux[good] = c1/(wave[good]**5 * (np.exp(val[good])-1.))
     bbflux = bbflux * 1e-4                  # W cm^-2 micron^-1 st^-1
 
-    if sigmaT:
+    if sigmaT is not None:
         bberr = wave*0.
         # Partial derivative of Planck Function w.r.t. T.  Scaled and in units of W cm^-2 micron^-1
         bberr[good] = (S * 1e-4) * c1 * c2/(wave[good]**6 * temp**2 * (np.exp(val[good])-1.)**2) * np.exp(val[good])
@@ -71,7 +73,7 @@ def bbody(wave,temp,sigmaT=None,S=1.,sigmaS=None):
     else:
         err1 = 0.
 
-    if sigmaS:
+    if sigmaS is not None:
         # Partial derivative of Planck Function w.r.t. S is "bbflux" in units of W cm^-2 micron^-1
         # Second quadrature term
         err2 = bbflux*sigmaS
@@ -81,7 +83,7 @@ def bbody(wave,temp,sigmaT=None,S=1.,sigmaS=None):
     # Compute final error by adding in quadrature.
     error = np.sqrt(err1**2 + err2**2)
 
-    if sigmaT or sigmaS:
-         return bbflux * S, error
-    else:
+    if (sigmaT is None) and (sigmaS is None):
          return bbflux * S
+    else:
+         return bbflux * S, error
