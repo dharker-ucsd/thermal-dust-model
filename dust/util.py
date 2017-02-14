@@ -30,7 +30,7 @@ def interp_model2comet(wave_comet, wave_model, fluxd_model):
         return fluxd_model_interp
         
 
-def bbody(wave,temp,sigmaT=None,S=1.,sigmaS=None):
+def bbody(wave,temp):
     """Compute the Planck funcion in W cm^-2 micron^-1 st^-1
 
     Parameters
@@ -39,20 +39,11 @@ def bbody(wave,temp,sigmaT=None,S=1.,sigmaS=None):
       A linear array of wavelength values in microns
     temp : float or array
       A temperature in Kelvin
-    sigmaT : float
-      If set to True, the error of the resulting curve will be computed.
-    S : float
-      A multiplier to scale the resulting curve.
-    sigmaS : float
-      If set, the error in the .
 
     Return
     ------
     bbflux : ndarray
       Planck function values in W cm^-2 micron^-1 st^-1
-    error : ndarray
-      The error of the resulting curve.  Will only return if either sigmaT or 
-      sigmaS are set to True.
 
     """
     bbflux = wave*0.
@@ -64,26 +55,4 @@ def bbody(wave,temp,sigmaT=None,S=1.,sigmaS=None):
     bbflux[good] = c1/(wave[good]**5 * (np.exp(val[good])-1.))
     bbflux = bbflux * 1e-4                  # W cm^-2 micron^-1 st^-1
 
-    if sigmaT is not None:
-        bberr = wave*0.
-        # Partial derivative of Planck Function w.r.t. T.  Scaled and in units of W cm^-2 micron^-1
-        bberr[good] = (S * 1e-4) * c1 * c2/(wave[good]**6 * temp**2 * (np.exp(val[good])-1.)**2) * np.exp(val[good])
-        # First quadrature term
-        err1 = bberr * sigmaT
-    else:
-        err1 = 0.
-
-    if sigmaS is not None:
-        # Partial derivative of Planck Function w.r.t. S is "bbflux" in units of W cm^-2 micron^-1
-        # Second quadrature term
-        err2 = bbflux*sigmaS
-    else:
-        err2 = 0.
-
-    # Compute final error by adding in quadrature.
-    error = np.sqrt(err1**2 + err2**2)
-
-    if (sigmaT is None) and (sigmaS is None):
-         return bbflux * S
-    else:
-         return bbflux * S, error
+    return bbflux 
