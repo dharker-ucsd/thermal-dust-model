@@ -5,7 +5,12 @@ __all__ = [
     'Solid',
     'FractallyPorous',
     'ConstantPorosity',
-    'Material'
+    'Material',
+    'AmorphousOlivine50',
+    'AmorphousPyroxene50',
+    'AmorphousCarbon',
+    'HotForsterite95',
+    'HotOrthoEnstatite',
 ]
 
 class PorosityModel(ABC):
@@ -123,4 +128,56 @@ class Material:
         from numpy import pi
         return 4e-12 / 3 * pi * a**3 * self.rho0 * (1 - self.porosity(a))
 
-    
+class AmorphousOlivine50(Material):
+    """Amorphous olivine, Mg/Fe = 50/50.
+
+    Parameters
+    ----------
+    porosity : PorosityModel, optional
+      A description of the porosity as a function of size.
+
+    """
+
+    def __init__(self, porosity=Solid()):
+        Material.__init__(self, 'Amorphous olivine 50/50', 3.3,
+                          porosity=porosity)
+
+class AmorphousPyroxene50(Material):
+    """Amorphous pyroxene, Mg/Fe = 50/50.
+
+    Parameters
+    ----------
+    porosity : PorosityModel, optional
+      A description of the porosity as a function of size.
+
+    """
+
+    def __init__(self, porosity=Solid()):
+        Material.__init__(self, 'Amorphous pyroxene 50/50', 3.3,
+                          porosity=porosity)
+
+class AmorphousCarbon(Material):
+    """Amorphous carbon.
+
+    Parameters
+    ----------
+    porosity : PorosityModel, optional
+      A description of the porosity as a function of size.
+
+    """
+
+    def __init__(self, porosity=Solid()):
+        Material.__init__(self, 'Amorphous carbon', 2.5,
+                          porosity=porosity)
+
+class HotForsterite95(Material):
+    """Mg-rich olivine (Fo95), hot crystal model."""
+
+    def __init__(self):
+        Material.__init__(self, 'Hot forsterite 95', 3.3, porosity=Solid())
+
+class HotOrthoEnstatite(Material):
+    """Mg-rich ortho enstantite, hot crystal model."""
+
+    def __init__(self):
+        Material.__init__(self, 'Hot ortho-enstatite', 3.3, porosity=Solid())
