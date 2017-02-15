@@ -100,8 +100,8 @@ def avint(x, y, xlim):
     assert len(x) >= 2
     assert all(np.diff(x) > 0), "Abscissas must be strictly increasing."
     assert len(x) == len(y)
-    assert (x[0] <= xlim[0]) and (xlim[0] <= x[1])
-    assert (x[0] <= xlim[1]) and (xlim[1] <= x[1])
+    assert (x[0] <= xlim[0]) and (xlim[0] <= x[-1]), "xlim must be within x"
+    assert (x[0] <= xlim[1]) and (xlim[1] <= x[-1]), "xlim must be within x"
 
     z = 0  # the result    
 
@@ -116,11 +116,11 @@ def avint(x, y, xlim):
         z = 0.5 * (fl + fr) * (max(xlim) - min(xlim))
     else:
         # overlapping parabolas
-        assert x[-2] >= min(xlim), "Less than three function values between the limits of integration."
-        assert x[2] <= max(xlim), "Less than three function values between the limits of integration."
+        assert min(xlim) < x[-2], "Less than three function values between the limits of integration."
+        assert max(xlim) > x[2], "Less than three function values between the limits of integration."
 
-        left = np.flatnonzero(x >= min(xlim))[-1]
-        right = np.flatnonzero(x <= min(xlim))[0]
+        left = np.flatnonzero(x >= min(xlim))[0]
+        right = np.flatnonzero(x <= max(xlim))[-1]
         assert (right - left) >= 2, "Less than three function values between the limits of integration."
 
         istart = left
@@ -128,10 +128,9 @@ def avint(x, y, xlim):
             istart += 1
 
         istop = right
-        if right == len(x):
+        if right == len(x) - 1:
             istop -= 1
 
-        sum = 0
         syl = min(xlim)
         syl2 = syl**2
         syl3 = syl**3
@@ -142,7 +141,7 @@ def avint(x, y, xlim):
             x3 = x[i + 1]
 
             x12 = x1 - x2
-            x13 = x1 - x2
+            x13 = x1 - x3
             x23 = x2 - x3
 
             term1 = y[i - 1] / (x12 * x13)
@@ -165,9 +164,9 @@ def avint(x, y, xlim):
             syu = x2
             syu2 = x2**2
             syu3 = x2**3
-            sum += (CA * (syu3 - syl3) / 3
-                    + CB * 0.5 * (syu2 - syl2)
-                    + CC * (syu - syl))
+            z += (CA * (syu3 - syl3) / 3
+                  + CB * 0.5 * (syu2 - syl2)
+                  + CC * (syu - syl))
 
             CA = A
             CB = B
@@ -178,10 +177,9 @@ def avint(x, y, xlim):
             syl3 = syu3
 
         syu = max(xlim)
-        z = (sum
-             + CA * (syu**3 - syl3) / 3
-             + CB * 0.5 * (syu**2 - syl2)
-             + CC * (syu - syl))
+        z += (CA * (syu**3 - syl3) / 3
+              + CB * 0.5 * (syu**2 - syl2)
+              + CC * (syu - syl))
         
     if xlim[1] < xlim[0]:
         # the integration is backwards, which is OK

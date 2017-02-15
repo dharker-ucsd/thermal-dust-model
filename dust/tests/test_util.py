@@ -40,3 +40,29 @@ class TestInterp:
 		self.setup()
 		assert self.util(self.w1, self.w2, self.f2)
 
+class TestAVInt:
+        def test_x2(self):
+                from ..util import avint
+                x = np.linspace(0, 100)
+                integ = avint(x, x**2, x[[0, -1]])
+                assert np.isclose(integ, (x[-1]**3 - x[0]**3) / 3)
+
+        def test_x3(self):
+                from ..util import avint
+                x = np.linspace(20, 36)
+                integ = avint(x, x**3, x[[0, -1]])
+                assert np.isclose(integ, (x[-1]**4 - x[0]**4) / 4)
+
+        def test_x_ln(self):
+                from ..util import avint
+                x = np.linspace(1, 100)
+                integ = avint(x, x - np.log(x), (5, 50))
+                f = lambda x: 0.5 * x * (x - 2 * np.log(x) + 2)
+                assert np.isclose(integ, f(50) - f(5))
+
+        def test_trapz(self):
+                # avint uses trapezoidal rule when there are only two points
+                from ..util import avint
+                x = np.array([1, 2])
+                integ = avint(x, x**2, x[[0, -1]])
+                assert np.isclose(integ, 2.5)
