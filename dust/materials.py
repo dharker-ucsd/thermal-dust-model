@@ -93,26 +93,47 @@ class ConstantPorosity(PorosityModel):
         return self.p * np.ones_like(a)
 
 class GrainSizeDistribution(ABC):
-    """Abstract base class for grain size distributions.
+    """Abstract base class for differential grain size distributions.
 
-    GSD models define the GSD for particular materials.  Derived
-    objects must define the `__call__` method.
+    GSD models define the differential GSD for particular materials.  
+    Derived objects must define the `__call__` method.
 
     """
+    def __init__(self, alim=[0, np.inf]):
+        self.alim = alim
+
+    def __call__(self, a):
+        """Differential size distribution evaluated at radius `a`.
+        ...
+        """
+
+        dnda = self._n(a)
+        if any(dnda < self.alim[0]):
+            dnda[dnda < self.alim[0]] = 0
+        if any(dnda > self.alim[1]):
+            dnda[dnda > self.alim[1]] = np.inf
+        return dnda
 
     @abstractmethod
-    def __call__(self, a):
-        """Porosity, i.e., vacuum fraction, for grain size `a`."""
+    def _n(self, a):
         pass
+        
+#    @abstractmethod
+#    def __call__(self, a):
+#        """Differential grain size distribution relative fraction for grain size `a`."""
+#        pass
 
 class HannerGSD(GrainSizeDistribution):
-    """Hanner (modified power law) grain size distribution.
+    """Hanner (modified power law) differential grain size distribution.
+    The HannerGSD is normalized by the peak of the GSD curve.
+    
+    gsd = (1 - amin/a)^M * (amin/a)^N
     
     Parameters
     ----------
     a0 : Quantity
-      The radius of the smallest grain unit in μm.  Porosity for `a <= a0`
-      will be 0.
+      The radius of the smallest grain unit in μm.  GSD for `a <= a0`
+      will be < 0.
     N : float
       Large grain slope
     M : float
@@ -140,13 +161,16 @@ class HannerGSD(GrainSizeDistribution):
         return dn/dnmax
         
 class PowerLaw(GrainSizeDistribution):
-    """Power Law grain size distribution.
+    """Power Law differential grain size distribution.
+    The PowerLaw is normalized by the smallest grain size.
+
+    gsd = (amin/a)^pow
     
     Parameters
     ----------
     a0 : Quantity
-      The radius of the smallest grain unit in μm.  Porosity for `a <= a0`
-      will be 0.
+      The radius of the smallest grain unit in μm.  GSD for `a <= a0`
+      will be < 0.
     pow : float
       The power for the GSD.  It is a POSITIVE number.
 
@@ -178,6 +202,8 @@ class Material:
       The bulk material density in g/cm3.
     porosity : PorosityModel, optional
       A description of the porosity as a function of size.
+    gsd : GrainSizeDistribution, optional
+      The differential grain size distribution as a function of size.
     
     """
 
@@ -189,6 +215,8 @@ class Material:
 
     def mass(self, a):
         """Grain mass for radius `a`.
+        The GSD is considered by default, but if no GSD is specified,
+        the defauly value of GSD is 1.
 
         Parameters
         ----------
