@@ -108,11 +108,16 @@ class GrainSizeDistribution(ABC):
         """
 
         dnda = self._n(a)
-        if any(dnda < self.alim[0]):
-            dnda[dnda < self.alim[0]] = 0
-        if any(dnda > self.alim[1]):
-            dnda[dnda > self.alim[1]] = np.inf
-        return dnda
+        if np.iterable(dnda):
+            if any(dnda < self.alim[0]):
+                dnda[dnda < self.alim[0]] = 0.
+            if any(dnda > self.alim[1]):
+                dnda[dnda > self.alim[1]] = 0.
+            return dnda
+        else:
+            if dnda < self.alim[0] or dnda > self.alim[1]:
+                dnda = 0
+            return dnda
 
     @abstractmethod
     def _n(self, a):
@@ -134,12 +139,15 @@ class HannerGSD(GrainSizeDistribution):
       Large grain slope
     M : float
       Small grain slope
+    alim : Two element array
+      Upper and lower grain radii in microns
 
     """
-    def __init__(self, a0, N, M):
+    def __init__(self, a0, N, M, alim=[0.1,100]):
         self.a0 = a0
         self.N = N
         self.M = M
+        self.alim = alim
     
     def _n(self, a):
         """GSD, i.e., relative amount, for grain size `a`.
@@ -150,6 +158,7 @@ class HannerGSD(GrainSizeDistribution):
           Grain radius in μm.
 
         """
+
         ap = self.a0 * (self.M + self.N) / self.N
         dn = ((1 - self.a0/a)**self.M) * (self.a0/a)**self.N
         dnmax = ((1 - self.a0/ap)**self.M) * (self.a0/ap)**self.N
@@ -169,11 +178,14 @@ class PowerLaw(GrainSizeDistribution):
       will be < 0.
     pow : float
       The power for the GSD.  It is a POSITIVE number.
+    alim : Two element array
+      Upper and lower grain radii in microns
 
     """
-    def __init__(self, a0, powlaw):
+    def __init__(self, a0, powlaw, alim=[0.1,100]):
         self.a0 = a0
         self.powlaw = powlaw
+        self.alim = alim
     
     def _n(self, a):
         """GSD, i.e., relative amount, for grain size `a`.
@@ -273,7 +285,7 @@ class AmorphousCarbon(Material):
 class HotForsterite95(Material):
     """Mg-rich olivine (Fo95), hot crystal model."""
 
-    def __init__(self, gsd=PowerLaw(1.,0)):
+    def __init__(self, gsd=PowerLaw(1.,0,)):
         Material.__init__(self, 'Hot forsterite 95', 3.3, porosity=Solid(), gsd=gsd)
 
 class HotOrthoEnstatite(Material):
