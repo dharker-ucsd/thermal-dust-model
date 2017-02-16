@@ -252,7 +252,10 @@ class Material:
         """
         from numpy import pi
         from util import avint
-        arr = np.linspace(ar[0], ar[1], ar[1]*100)
+        
+        log_ar = np.log10(ar)
+        n = max(log_ar.ptp(), 1) * 10000
+        arr = np.logspace(log_ar[0], log_ar[1], n)
         dmda = 4e-12 / 3 * pi * arr**3 * self.gsd(arr) * self.rho0 * (1 - self.porosity(arr))
         
         return avint(arr,dmda,ar)
