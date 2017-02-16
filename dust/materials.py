@@ -107,18 +107,6 @@ class GrainSizeDistribution(ABC):
         ...
         """
 
-#        dnda = self._n(a)
-#        if np.iterable(dnda):
-#            if any(dnda < self.alim[0]):
-#                dnda[dnda < self.alim[0]] = 0.
-#            if any(dnda > self.alim[1]):
-#                dnda[dnda > self.alim[1]] = 0.
-#            return dnda
-#        else:
-#            if dnda < self.alim[0] or dnda > self.alim[1]:
-#                dnda = 0
-#            return dnda
-
         dnda = self._n(a)
         if np.iterable(a):
             if any(a < self.alim[0]):
@@ -130,8 +118,6 @@ class GrainSizeDistribution(ABC):
             if a < self.alim[0] or a > self.alim[1]:
                 dnda = 0
             return dnda
-
-
 
     @abstractmethod
     def _n(self, a):
