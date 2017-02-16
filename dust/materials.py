@@ -116,13 +116,9 @@ class GrainSizeDistribution(ABC):
 
     @abstractmethod
     def _n(self, a):
+        """Differential grain size distribution relative fraction for grain size `a`."""
         pass
         
-#    @abstractmethod
-#    def __call__(self, a):
-#        """Differential grain size distribution relative fraction for grain size `a`."""
-#        pass
-
 class HannerGSD(GrainSizeDistribution):
     """Hanner (modified power law) differential grain size distribution.
     The HannerGSD is normalized by the peak of the GSD curve.
@@ -145,7 +141,7 @@ class HannerGSD(GrainSizeDistribution):
         self.N = N
         self.M = M
     
-    def __call__(self, a):
+    def _n(self, a):
         """GSD, i.e., relative amount, for grain size `a`.
 
         Parameters
@@ -179,7 +175,7 @@ class PowerLaw(GrainSizeDistribution):
         self.a0 = a0
         self.powlaw = powlaw
     
-    def __call__(self, a):
+    def _n(self, a):
         """GSD, i.e., relative amount, for grain size `a`.
 
         Parameters
