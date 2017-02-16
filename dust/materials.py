@@ -107,17 +107,31 @@ class GrainSizeDistribution(ABC):
         ...
         """
 
+#        dnda = self._n(a)
+#        if np.iterable(dnda):
+#            if any(dnda < self.alim[0]):
+#                dnda[dnda < self.alim[0]] = 0.
+#            if any(dnda > self.alim[1]):
+#                dnda[dnda > self.alim[1]] = 0.
+#            return dnda
+#        else:
+#            if dnda < self.alim[0] or dnda > self.alim[1]:
+#                dnda = 0
+#            return dnda
+
         dnda = self._n(a)
-        if np.iterable(dnda):
-            if any(dnda < self.alim[0]):
-                dnda[dnda < self.alim[0]] = 0.
-            if any(dnda > self.alim[1]):
-                dnda[dnda > self.alim[1]] = 0.
+        if np.iterable(a):
+            if any(a < self.alim[0]):
+                dnda[a < self.alim[0]] = 0.
+            if any(a > self.alim[1]):
+                dnda[a > self.alim[1]] = 0.
             return dnda
         else:
-            if dnda < self.alim[0] or dnda > self.alim[1]:
+            if a < self.alim[0] or a > self.alim[1]:
                 dnda = 0
             return dnda
+
+
 
     @abstractmethod
     def _n(self, a):
@@ -162,8 +176,9 @@ class HannerGSD(GrainSizeDistribution):
         ap = self.a0 * (self.M + self.N) / self.N
         dn = ((1 - self.a0/a)**self.M) * (self.a0/a)**self.N
         dnmax = ((1 - self.a0/ap)**self.M) * (self.a0/ap)**self.N
-
-        return dn/dnmax
+        dnda = dn/dnmax
+        
+        return dnda
         
 class PowerLaw(GrainSizeDistribution):
     """Power Law differential grain size distribution.
@@ -196,8 +211,10 @@ class PowerLaw(GrainSizeDistribution):
           Grain radius in μm.
 
         """
-
-        return (self.a0/a)**self.powlaw
+        
+        dnda = (self.a0/a)**self.powlaw
+        
+        return dnda
 
 class Material:
     """A single instance of a material.
@@ -223,8 +240,6 @@ class Material:
 
     def mass(self, a):
         """Grain mass for radius `a`.
-        The GSD is considered by default, but if no GSD is specified,
-        the defauly value of GSD is 1.
 
         Parameters
         ----------
@@ -238,7 +253,23 @@ class Material:
 
         """
         from numpy import pi
-        return 4e-12 / 3 * pi * a**3 * self.gsd(a) * self.rho0 * (1 - self.porosity(a))
+        return 4e-12 / 3 * pi * a**3 * self.rho0 * (1 - self.porosity(a))
+
+    def total_mass(self, ar):
+        """Total mass over a range of radii weighted by the GSD.
+        
+        Parameters
+        ----------
+        ar : two element array
+          Lower and upper grain radii range over which to compute mass.
+          
+        """
+        from numpy import pi
+        from util import avint
+        arr = np.linspace(ar[0], ar[1], 100)
+        dmda = 4e-12 / 3 * pi * arr**3 * self.gsd(arr) * self.rho0 * (1 - self.porosity(arr))
+        
+        return avint(arr,dmda,ar)
 
 class AmorphousOlivine50(Material):
     """Amorphous olivine, Mg/Fe = 50/50.
