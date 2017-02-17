@@ -19,39 +19,41 @@ class ModelResults:
         assert all([isinstance(s, (int, float)) for s in scales])
         assert len(materials) == len(scales)
 
-    def mass(self, alim):
+    def total_mass(self, ar):
         """Total mass of each material for the given size range.
 
         Parameters
         ----------
-        alim : array, optional
-          Consider grain radii from `alim[0]` to `alim[1]`.  Unit: μm.
+        ar : array, optional
+          Consider grain radii from `ar[0]` to `ar[1]`.  Unit: μm.
 
         """
 
         from .util import avint
 
-        assert alim[0] <= alim[1]
+        assert np.iterable(ar)
+        assert len(ar) == 2
+        assert ar[0] <= ar[1]
 
         m = np.zeros(len(self.materials))
 
-        if alim[0] == alim[1]:
+        if ar[0] == ar[1]:
             return m
         
         for i in range(len(m)):
-            m[i] = self.scale[i] * self.material[i].mass(alim)
+            m[i] = self.scale[i] * self.material[i].total_mass(ar)
 
         return m
 
-    def mass_fraction(self, alim):
+    def mass_fraction(self, ar):
         """Mass fraction of each material for the given size range.
 
         Parameters
         ----------
-        alim : array, optional
-          Consider grain radii from `alim[0]` to `alim[1]`.  Unit: μm.
+        ar : array, optional
+          Consider grain radii from `ar[0]` to `ar[1]`.  Unit: μm.
 
         """
 
-        m = self.mass(alim)
+        m = self.mass(ar)
         return m / m.sum()
