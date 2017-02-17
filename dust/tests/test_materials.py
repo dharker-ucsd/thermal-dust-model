@@ -1,5 +1,6 @@
 import numpy as np
 from .. import materials as mat
+from ..util import avint
 
 class TestPorosity:
     def test_solid(self):
@@ -44,3 +45,8 @@ class TestGSD:
     def test_mass(self):
         ac = mat.AmorphousCarbon(mat.FractallyPorous(0.1, 3.0),mat.HannerGSD(0.1,3.7,37))
         assert np.isclose(ac.mass(5.0), 7.776724279537361e-11)
+        
+    def test_total_mass(self):
+        ac = mat.AmorphousCarbon(mat.FractallyPorous(0.1, 3.0),mat.HannerGSD(0.1,3.7,37,alim=[0.1,100]))
+        assert np.isclose(ac.total_mass((0.1,100)), 3.5740712092113057e-09)
+        
