@@ -251,7 +251,7 @@ class Material:
           
         """
         from numpy import pi
-        from util import avint
+        from .util import avint
         
         log_ar = np.log10(ar)
         n = max(log_ar.ptp(), 1) * 10000
