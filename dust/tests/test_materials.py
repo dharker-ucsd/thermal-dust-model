@@ -35,18 +35,25 @@ class TestMaterial:
 
 class TestGSD:
     def test_hanner(self):
-        gsd = mat.HannerGSD(0.1,3.7,37)
+        gsd = mat.HannerGSD(0.1, 3.7, 37)
         assert np.isclose(gsd(5.0), 0.05940979728725421)
+        assert np.isclose(gsd(0.1 * (3.7 + 37) / 3.7), 1.0)
 
     def test_powlaw(self):
-        gsd = mat.PowerLaw(0.1,3.5)
+        gsd = mat.PowerLaw(0.1, 3.5)
         assert np.isclose(gsd(5.0), 1.1313708498984761e-06)
+        assert np.isclose(gsd(5) / gsd(50), 10**3.5)
         
     def test_mass(self):
-        ac = mat.AmorphousCarbon(mat.FractallyPorous(0.1, 3.0),mat.HannerGSD(0.1,3.7,37))
+        ac = mat.AmorphousCarbon(mat.FractallyPorous(0.1, 3.0),
+                                 mat.HannerGSD(0.1, 3.7, 37))
         assert np.isclose(ac.mass(5.0), 7.776724279537361e-11)
         
     def test_total_mass(self):
-        ac = mat.AmorphousCarbon(mat.FractallyPorous(0.1, 3.0),mat.HannerGSD(0.1,3.7,37,alim=[0.1,100]))
-        assert np.isclose(ac.total_mass((0.1,100)), 3.5740712092113057e-09)
-        
+        ac = mat.AmorphousCarbon(mat.FractallyPorous(0.1, 3.0),
+                                 mat.HannerGSD(0.1, 3.7, 37, alim=[0.1, 100]))
+        assert np.isclose(ac.total_mass((0.1, 100)), 3.5740712092113057e-09)
+
+        # dn/da = a^-3 has equal mass per decade
+        ac = mat.AmorphousCarbon(mat.Solid(), mat.PowerLaw(0.1, 3))
+        assert np.isclose(ac.total_mass((0.1, 1)), ac.total_mass((1, 10)))
