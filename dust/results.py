@@ -19,6 +19,7 @@ class ModelResults:
         from .materials import Material
 
         assert all([isinstance(m, Material) for m in materials])
+        self.materials = materials
 
         self.scales = np.array(scales)
         assert self.scales.ndim in [1, 2], '`scales` must have 1 or 2 dimensions.'
@@ -27,28 +28,35 @@ class ModelResults:
         else:
             assert self.scales.shape[1] == len(materials)
 
-    @property
-    def table(self):
+    def table(self, ar=(0.1, 1)):
         """Results summarized as a table."""
 
         from astropy.table import Table
 
-        N = len(self.materials)
-        m = self.total_mass((0.1, 1))
-        f = self.mass_fraction((0.1, 1))
+        Nmat = len(self.materials)
+        Nsca = len(self.scales)
+        m = self.total_mass(ar)
+        if m.ndim == 1:
+            m = m.sum()
+        else:
+            m = m.sum(-1)
+
+        f = self.mass_fraction(ar)
 
         if self.scales.ndim == 1:
-            data = np.concatenate((self.scales, m, f))
+            data = np.concatenate((self.scales, [m], f))
         else:
-            data = np.hstack((self.scales, m.reshape((1, N)), f))
+            data = np.hstack((self.scales, m.reshape((Nsca, 1)), f))
 
-        names = ['s{}'.format(i) for i in range(N)]
+        names = ['s{}'.format(i) for i in range(Nmat)]
         names += ['Mtot']
-        names += ['f{}'.format(i) for i in range(N)]
+        names += ['f{}'.format(i) for i in range(Nmat)]
 
         tab = Table(names=names, data=data)
-        for i in range(N):
-            tab.meta['material {}'.format(i)] = self.materials[i].name
+        for i, m in enumerate(self.materials):
+            tab.meta['material {}'.format(i)] = m.name
+
+        tab.meta['Radius range for masses'] = ar
 
         return tab
 
@@ -73,7 +81,7 @@ class ModelResults:
 
         m = np.zeros(len(self.materials))
         for i in range(len(m)):
-            m[i] = self.material[i].total_mass(ar)
+            m[i] = self.materials[i].total_mass(ar)
 
         return self.scales * m
 
@@ -87,7 +95,7 @@ class ModelResults:
 
         """
 
-        m = self.mass(ar)
+        m = self.total_mass(ar)
         if m.ndim == 1:
             f = m / m.sum()
         else:
