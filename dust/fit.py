@@ -143,7 +143,7 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
       The ModelResults.
     best : ModelResults
       Use these scale factors for the best fit, otherwise use the mode
-      of each parameter for the best fit.
+      of each parameter for the best fit, estimated from a histogram.
     cl : float, optional
       Use this confidence limit to define uncertainties. [percentile]
     ar : array-like, optional
