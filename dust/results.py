@@ -8,7 +8,10 @@ class ModelResults:
     materials : list of Material
       List of materials used in the fit.
     scales : array-like
-      Grain size distribution scale factors for each material.
+      Grain size distribution scale factors for each material.  May be
+      an array with the same length as `materials`, or, to hold
+      multiple sets of scale factors, a 2-dimensional array with size
+      `N x len(materials)` (same as `fit.mcfit` results).
 
     """
 
@@ -16,8 +19,38 @@ class ModelResults:
         from .materials import Material
 
         assert all([isinstance(m, Material) for m in materials])
-        assert all([isinstance(s, (int, float)) for s in scales])
-        assert len(materials) == len(scales)
+
+        self.scales = np.array(scales)
+        assert self.scales.ndim in [1, 2], '`scales` must have 1 or 2 dimensions.'
+        if self.scales.ndim == 1:
+            assert len(self.scales) == len(materials)
+        else:
+            assert self.scales.shape[1] == len(materials)
+
+    @property
+    def table(self):
+        """Results summarized as a table."""
+
+        from astropy.table import Table
+
+        N = len(self.materials)
+        m = self.total_mass((0.1, 1))
+        f = self.mass_fraction((0.1, 1))
+
+        if self.scales.ndim == 1:
+            data = np.concatenate((self.scales, m, f))
+        else:
+            data = np.hstack((self.scales, m.reshape((1, N)), f))
+
+        names = ['s{}'.format(i) for i in range(N)]
+        names += ['Mtot']
+        names += ['f{}'.format(i) for i in range(N)]
+
+        tab = Table(names=names, data=data)
+        for i in range(N):
+            tab.meta['material {}'.format(i)] = self.materials[i].name
+
+        return tab
 
     def total_mass(self, ar):
         """Total mass of each material for the given size range.
@@ -35,15 +68,14 @@ class ModelResults:
         assert len(ar) == 2
         assert ar[0] <= ar[1]
 
-        m = np.zeros(len(self.materials))
-
         if ar[0] == ar[1]:
             return m
-        
-        for i in range(len(m)):
-            m[i] = self.scale[i] * self.material[i].total_mass(ar)
 
-        return m
+        m = np.zeros(len(self.materials))
+        for i in range(len(m)):
+            m[i] = self.material[i].total_mass(ar)
+
+        return self.scales * m
 
     def mass_fraction(self, ar):
         """Mass fraction of each material for the given size range.
@@ -56,4 +88,9 @@ class ModelResults:
         """
 
         m = self.mass(ar)
-        return m / m.sum()
+        if m.ndim == 1:
+            f = m / m.sum()
+        else:
+            f = (m.T / m.sum(-1)).T
+
+        return f
