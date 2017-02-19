@@ -1,5 +1,12 @@
 import numpy as np
 
+# by default, only import functions a user might be interested in
+__all__ [
+    'bbody',
+    'hanner_gsd',
+    'power_law',
+]
+
 def interp_model2comet(wave_comet, wave_model, fluxd_model):
     """Interpolate the model spectrum to the same wavelength grid as the comet
     spectrum.

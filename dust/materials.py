@@ -5,6 +5,8 @@ __all__ = [
     'Solid',
     'FractallyPorous',
     'ConstantPorosity',
+    'HannerGSD',
+    'PowerLaw',
     'Material',
     'AmorphousOlivine50',
     'AmorphousPyroxene50',

@@ -2,14 +2,13 @@
 #
 
 """
-dust_model --- Radiative Equilibrium Model Calculations
+model --- Radiative Equilibrium Model Calculations
 ================================================================================
 
 .. autosummary::
    :toctree: generated/
 
    q_solar
-   bbody
 
 """
 
