@@ -58,7 +58,7 @@ unc = args.spectrum[args.columns[2]]
 
 # Determine best model.
 
-# If If args.n > 0, pass to dust.best_fit.  Otherwise, set uncertainty
-# to 0?
+# If If args.n > 0, pass to dust.fit_uncertainty.  Otherwise, set uncertainty
+# to 0?  Save all mcfits.
 
 # Save best model results.
