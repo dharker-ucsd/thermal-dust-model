@@ -4,6 +4,7 @@ import logging
 __all__ = [
     'fit_one',
     'mcfit',
+    'summarize_mcfit'
 ]
 
 logger = logging.getLogger('thermal-dust-model')
