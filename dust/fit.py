@@ -184,5 +184,7 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
             c = best_tab[col]
 
         summary[col] = c, ll, ul
+        logger.info('{} = {:.4g} +{:.4g} -{:.4g}'.format(
+            col, c, ul - c, ll - c))
 
     return summary
