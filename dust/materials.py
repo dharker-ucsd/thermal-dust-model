@@ -126,13 +126,14 @@ class GrainSizeDistribution(ABC):
         
 class HannerGSD(GrainSizeDistribution):
     """Hanner (modified power law) differential grain size distribution.
+
     The HannerGSD is normalized by the peak of the GSD curve.
     
-    gsd = (1 - amin/a)^M * (amin/a)^N
-    
+      `dn/da = (1 - a0 / a)**M * (a0 / a)**N`
+
     Parameters
     ----------
-    a0 : Quantity
+    a0 : float
       The radius of the smallest grain unit in μm.  GSD for `a <= a0`
       will be < 0.
     N : float
@@ -148,7 +149,13 @@ class HannerGSD(GrainSizeDistribution):
         self.N = N
         self.M = M
         self.alim = alim
-    
+
+    @property
+    def ap(self):
+        """Peak of the GSD."""
+        from .util import hanner_ap
+        return hanner_ap(self.a0, self.N, self.M)
+
     def _n(self, a):
         """GSD, i.e., relative amount, for grain size `a`.
 
@@ -158,27 +165,24 @@ class HannerGSD(GrainSizeDistribution):
           Grain radius in μm.
 
         """
-
-        ap = self.a0 * (self.M + self.N) / self.N
-        dn = ((1 - self.a0/a)**self.M) * (self.a0/a)**self.N
-        dnmax = ((1 - self.a0/ap)**self.M) * (self.a0/ap)**self.N
-        dnda = dn/dnmax
-        
-        return dnda
+        from .util import hanner_gsd
+        return hanner_gsd(a, self.a0, self.N, self.M)
         
 class PowerLaw(GrainSizeDistribution):
     """Power Law differential grain size distribution.
-    The PowerLaw is normalized by the smallest grain size.
 
-    gsd = (amin/a)^pow
+    The GSD is normalized by the smallest grain size.
+
+      `dn/da = (a0 / a)**powlaw`
     
     Parameters
     ----------
-    a0 : Quantity
+    a0 : float
       The radius of the smallest grain unit in μm.  GSD for `a <= a0`
       will be < 0.
-    pow : float
-      The power for the GSD.  It is a POSITIVE number.
+    powlaw : float
+      The power for the GSD.  It is a POSITIVE number when the slope
+      is negative, i.e., `dn/da` is proportional to `a**-powlaw`.
     alim : Two element array
       Upper and lower grain radii in microns
 
@@ -197,10 +201,8 @@ class PowerLaw(GrainSizeDistribution):
           Grain radius in μm.
 
         """
-        
-        dnda = (self.a0/a)**self.powlaw
-        
-        return dnda
+        from .util import power_law
+        return power_law(a, self.a0, self.powlaw)
 
 class Material:
     """A single instance of a material.
