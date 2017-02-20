@@ -61,3 +61,55 @@ class TestMCFit:
         best, unc, r = self.fit(self.y_n, self.u_n, 1e-2, 'nnls')
         assert (best[0] - self.b) / unc[0] < 3
         assert (best[1] - self.m) / unc[1] < 3
+
+class TestSummarizeMCFit:
+    def test_limits(self):
+        from scipy.special import erf
+        from ..fit import summarize_mcfit
+        from ..results import ModelResults
+        from .. import materials as mat
+
+        best_scales = 1000, 100
+        unc = 100, 10
+        scales = np.random.randn(20000).reshape((10000, 2))
+        scales[:, 0] = scales[:, 0] * unc[0] + best_scales[0]
+        scales[:, 1] = scales[:, 1] * unc[1] + best_scales[1]
+
+        gsd = mat.PowerLaw(0.1, 0)
+        materials = [mat.AmorphousCarbon(gsd=gsd),
+                     mat.AmorphousOlivine50(gsd=gsd)]
+        
+        best = ModelResults(materials, best_scales)
+        results = ModelResults(materials, scales)
+
+        s = 2  # get 2-sigma results
+        cl = 0.5 * (erf(s / np.sqrt(2.0)) - erf(-s / np.sqrt(2.0))) * 100
+        summary = summarize_mcfit(results, cl=cl)
+
+        limits = best_scales[0] + s * unc[0] * np.array((-1, 1))
+        assert np.allclose(summary['s0'][1:], limits, rtol=0.05)
+
+        limits = best_scales[1] + s * unc[1] * np.array((-1, 1))
+        assert np.allclose(summary['s1'][1:], limits, rtol=0.05)
+
+    def test_best_fit_finding(self):
+        from ..fit import summarize_mcfit
+        from ..results import ModelResults
+        from .. import materials as mat
+
+        best_scales = 1000, 100
+        unc = 100, 10
+        scales = np.random.randn(20000).reshape((10000, 2))
+        scales[:, 0] = scales[:, 0] * unc[0] + best_scales[0]
+        scales[:, 1] = scales[:, 1] * unc[1] + best_scales[1]
+
+        gsd = mat.PowerLaw(0.1, 0)
+        materials = [mat.AmorphousCarbon(gsd=gsd),
+                     mat.AmorphousOlivine50(gsd=gsd)]
+        
+        results = ModelResults(materials, scales)
+
+        summary = summarize_mcfit(results)
+
+        assert np.isclose(summary['s0'][0], best_scales[0], rtol=0.05)
+        assert np.isclose(summary['s1'][0], best_scales[1], rtol=0.05)
