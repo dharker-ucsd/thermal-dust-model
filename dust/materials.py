@@ -258,6 +258,7 @@ class Material:
           
         """
         
+        from .util import total_mass
         from numpy import pi
         
         log_ar = np.log10(ar)

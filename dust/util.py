@@ -279,7 +279,7 @@ def power_law(a, a0, powlaw):
       The power for the GSD.  It is a POSITIVE number when the slope
       is negative, i.e., `dn/da` is proportional to `a**-powlaw`.
 
-    Results
+    Returns
     -------
     dnda : float or ndarray
       The GSD at each `a`.
@@ -288,14 +288,22 @@ def power_law(a, a0, powlaw):
     
     return (a0 / np.array(a))**powlaw
     
-def total_mass(ar, pososity, gsd):
+def total_mass(ar, rho, gsd):
     """Total mass over a range of radii weighted by the GSD.
         
         Parameters
         ----------
         ar : two element array
           Lower and upper grain radii range over which to compute mass.
-        porosity : 
+        rho : ndarray
+          Density of the grains
+        gsd : ndarray
+          Differential grain size distribution of the grains
+        
+        Returns
+        -------
+        M : float
+          Total grain mass in g.
           
         """
 
