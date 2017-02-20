@@ -242,6 +242,25 @@ def interp_model2comet(wave_comet, wave_model, fluxd_model):
     
     return fluxd_model_interp
 
+def mass(a, rho):
+    """Mass for grain of radius `a` and density `rho`.
+    
+    Parameters
+    ----------
+    a : float or array-like
+      The grain radii over which to evaluate the mass.
+    rho : float
+      The density of the grain.
+      
+    Returns
+    -------
+    m : float or ndarray
+      Grain mass in g.
+    """
+        
+    from numpy import pi
+    return 4e-12 / 3 * pi * a**3 * rho
+
 def power_law(a, a0, powlaw):
     """Power Law differential grain size distribution.
 

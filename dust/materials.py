@@ -242,8 +242,11 @@ class Material:
           Grain mass in g.
 
         """
-        from numpy import pi
-        return 4e-12 / 3 * pi * a**3 * self.rho0 * (1 - self.porosity(a))
+        from .util import mass
+        
+        rho = self.rho0 * (1 - self.porosity(a))
+        
+        return mass(a, rho)
 
     def total_mass(self, ar):
         """Total mass over a range of radii weighted by the GSD.
