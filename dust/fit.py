@@ -4,6 +4,7 @@ import logging
 __all__ = [
     'fit_one',
     'mcfit',
+    'summarize_mcfit'
 ]
 
 logger = logging.getLogger('thermal-dust-model')
@@ -133,3 +134,57 @@ def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
                                      guess=best, **kwargs)
 
     return scales, chi2
+
+def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
+    """Summarize the results of a Monte Carlo fit.
+
+    Parameters
+    ----------
+    results : ModelResults
+      The ModelResults.
+    best : ModelResults
+      Use these scale factors for the best fit, otherwise use the mode
+      of each parameter for the best fit, estimated from a histogram.
+    cl : float, optional
+      Use this confidence limit to define uncertainties. [percentile]
+    ar : array-like, optional
+      Use this radius range for computing dust masses.
+    bins : int, optional
+      Number of bins to use for best-fit estimation.
+
+    Returns
+    -------
+    summary : dict
+      The summary.  For each parameter the values are the best fit,
+      lower limit, and upper limit.
+
+    """
+
+    from .results import ModelResults
+
+    assert isinstance(results, ModelResults)
+    assert isinstance(best, (ModelResults, type(None)))
+    assert len(ar) == 2
+    
+    tab = results.table(ar=ar)
+    if best is not None:
+        best_tab = best.table(ar=ar)
+
+    summary = dict()
+    for col in tab.colnames:
+        # find the upper and lower limits
+        ll = np.percentile(tab[col], (100 - cl) / 2)
+        ul = np.percentile(tab[col], (100 - cl) / 2 + cl)
+        
+        # find the best fit
+        if best is None:
+            h = np.histogram(tab[col], range=(ll, ul), bins=31)
+            c = h[1][h[0].argmax()]
+        else:
+            c = best_tab[col]
+
+        summary[col] = c, ll, ul
+        logger.info('{} = {:.4g} +{:.4g} -{:.4g}'.format(
+            col, c, ul - c, ll - c))
+
+    return summary
