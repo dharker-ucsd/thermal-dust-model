@@ -287,3 +287,25 @@ def power_law(a, a0, powlaw):
     """
     
     return (a0 / np.array(a))**powlaw
+    
+def total_mass(ar, pososity, gsd):
+    """Total mass over a range of radii weighted by the GSD.
+        
+        Parameters
+        ----------
+        ar : two element array
+          Lower and upper grain radii range over which to compute mass.
+        porosity : 
+          
+        """
+
+    from numpy import pi
+    from .util import avint
+        
+    log_ar = np.log10(ar)
+    n = max(log_ar.ptp(), 1) * 10000
+    arr = np.logspace(log_ar[0], log_ar[1], n)
+    dmda = 4e-12 / 3 * pi * arr**3 * gsd * rho
+        
+    return avint(arr,dmda,ar)
+
