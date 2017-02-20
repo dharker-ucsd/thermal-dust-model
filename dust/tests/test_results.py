@@ -8,12 +8,18 @@ class TestModelResults:
         materials = [mat.AmorphousCarbon(), mat.AmorphousOlivine50()]
 
         scales = np.arange(len(materials))
-        results = ModelResults(materials, scales)
+        rchisq = 1.1
+        dof = 100
+        results = ModelResults(materials, scales, rchisq=rchisq, dof=dof)
         assert len(results.table()) == 1
 
-        scales = np.arange(len(materials) * 10).reshape((10, len(materials)))
-        results = ModelResults(materials, scales)
-        assert len(results.table()) == 10
+        N = 10
+        scales = np.arange(len(materials) * N).reshape((N, len(materials)))
+        rchisq = np.arange(N)
+        dof = 100
+        results = ModelResults(materials, scales, rchisq=rchisq, dof=dof)
+        assert len(results.table()) == N
+
 
     def test_total_mass(self):
         from ..results import ModelResults
