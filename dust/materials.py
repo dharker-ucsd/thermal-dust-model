@@ -267,7 +267,7 @@ class Material:
         gsd =  self.gsd(arr)
         rho = self.rho0 * (1 - self.porosity(arr))
         
-        return total_mass(ar,rho,gsd)
+        return total_mass(arr,rho,gsd)
 
 class AmorphousOlivine50(Material):
     """Amorphous olivine, Mg/Fe = 50/50.
