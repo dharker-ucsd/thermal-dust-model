@@ -248,9 +248,9 @@ def mass(a, rho):
     Parameters
     ----------
     a : float or array-like
-      The grain radii over which to evaluate the mass.
+      The grain radii over which to evaluate the mass in μm.
     rho : float
-      The density of the grain.
+      The density of the grain in g/cm3.
       
     Returns
     -------
@@ -293,12 +293,17 @@ def total_mass(arr, rho, gsd):
         
         Parameters
         ----------
+<<<<<<< HEAD
         arr : ndarray
           Array of grain radii range over which to compute mass.
+=======
+        ar : two element array
+          Lower and upper grain radii range over which to compute mass in μm.
+>>>>>>> f51fd621357ba2c990213c844cd63f41230f1c83
         rho : ndarray
-          Density of the grains
+          Density of the grains in g/cm3.
         gsd : ndarray
-          Differential grain size distribution of the grains
+          Differential grain size distribution of the grains.
         
         Returns
         -------
