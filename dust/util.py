@@ -293,13 +293,8 @@ def total_mass(arr, rho, gsd):
         
         Parameters
         ----------
-<<<<<<< HEAD
         arr : ndarray
           Array of grain radii range over which to compute mass.
-=======
-        ar : two element array
-          Lower and upper grain radii range over which to compute mass in μm.
->>>>>>> f51fd621357ba2c990213c844cd63f41230f1c83
         rho : ndarray
           Density of the grains in g/cm3.
         gsd : ndarray
