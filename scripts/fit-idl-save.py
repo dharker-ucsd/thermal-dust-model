@@ -46,7 +46,7 @@ unc = args.spectrum[args.columns[2]]
 
 # Open IDL save files with idl.readsav
 files = ['fcar_e.idl', 'fens.idl', 'fol50.idl', 'fpyr50.idl', 'fsfor.idl']
-data = [idl.readsav(os.sep.join((dust.config['fit-idl-save']['path'], f))) for f in files]
+data = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 
 # Verify requested rh and D exists in saved model
 for i, d in enumerate(data):
