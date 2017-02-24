@@ -35,7 +35,7 @@ parser.add_argument('-D', type=list_of(float), default=[3, 2.857, 2.727, 2.609, 
 parser.add_argument('--gsd', default='(pow|han).*', help='Regular expression used to determine which GSD models to fit.')
 parser.add_argument('--unit', default='W/(m2 um)', type=u.Unit, help='Flux density units of the comet spectrum, default="W/(m2 um)".')
 parser.add_argument('--columns', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
-parser.add_argumnet('--overwrite', action='store_true', help='Overwrite previous output, if it exists.')
+parser.add_argument('--overwrite', action='store_true', help='Overwrite previous output, if it exists.')
 
 args = parser.parse_args()
 
@@ -45,8 +45,12 @@ fluxd = args.spectrum[args.columns[1]]
 unc = args.spectrum[args.columns[2]]
 
 # Open IDL save files with idl.readsav
+files = ['fcar_e.idl', 'fens.idl', 'fol50.idl', 'fpyr50.idl', 'fsfor.idl']
+data = [idl.readsav(os.sep.join((dust.config['fit-idl-save']['path'], f))) for f in files]
 
 # Verify requested rh and D exists in saved model
+for i, d in enumerate(data):
+    assert any([np.isclose(args.rh, rh) for rh in d['r_h']]), '{} error: rh={} not in {}'.format(files[i], args.rh, d['r_h'])
 
 # Pick out GSDs to fit, e.g.,
 #   i = [re.match(args.gsd, str(gsd)) is not None for gsd in model['gsd']]
