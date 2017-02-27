@@ -44,20 +44,50 @@ wave = args.spectrum[args.columns[0]]
 fluxd = args.spectrum[args.columns[1]]
 unc = args.spectrum[args.columns[2]]
 
-# Open IDL save files with idl.readsav
-files = ['fcar_e.idl', 'fens.idl', 'fol50.idl', 'fpyr50.idl', 'fsfor.idl']
-data = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
+# Open IDL save files with idl.readsav, preserve this order:
+files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
+models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 
-# Verify requested rh and D exists in saved model
-for i, d in enumerate(data):
-    assert any([np.isclose(args.rh, rh) for rh in d['r_h']]), '{} error: rh={} not in {}'.format(files[i], args.rh, d['r_h'])
+# Pick out rh
+i_rh = np.array([np.isclose(args.rh, rh) for rh in models[0]['r_h']])
+assert any(i_rh), 'Error: rh={} not in {}'.format(args.rh, models[0]['r_h'])
+#s = i_rh  # subscripts for flux, first axis is wavelength, second is rh
+#mfluxd = np.array([m['flux'][:, i] for m in models])
 
-# Pick out GSDs to fit, e.g.,
-#   i = [re.match(args.gsd, str(gsd)) is not None for gsd in model['gsd']]
-# Need to convert gsd to str because the gsd array in the IDL save
-# file is an array of byte strings, which causes issues in Python 3.
+# Pick out GSDs
+gsds = models[0]['gsd']
+i_gsd = np.array([re.match(args.gsd, gsd.decode()) is not None for gsd in gsds])
+assert any(i_gsd), 'Error: None of gsd={} in {}'.format(args.gsd, gsds)
+gsds = gsds[i_gsd]
+#s.append(i)  # next axis is gsd
+
+# Pick out D, only for amorphous
+Ds = models[0]['D']
+i_D = []
+for D in Ds:
+    for d in args.D:
+        if np.isclose(d, D):
+            i_D.append(True)
+            break
+    else:
+        i_D.append(False)
+assert any(i_D), 'Error: None of D={} in {}'.format(args.D, Ds)
+Ds = Ds[i_D]
+#s.append(i)  # next axis is D
+
+# Pick out dirtiness, this is not user configurable
+#s.append(-1)  # works for all materials, picks out the dirtiest crystals
 
 # Pass models to fit to dust.fit_all.
+# mfluxd will be an array with axis order: material, wavelength, D, gsd
+mwave = models[0]['wave_f']
+amorphous = np.array([m['flux'][:, i_rh, i_gsd, i_D, 0] for m in models[:3]])
+crystalline = np.array([m['flux'][:, i_rh, i_gsd, 0, -1] for m in models[3:]])
+stop
+
+tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (Ds, gsds),
+                   parameter_names=('D', 'GSD'),
+                   material_names=('ap', 'ao', 'ac', 'co', 'cp'))
 
 # Save fit_all results.
 

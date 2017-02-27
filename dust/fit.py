@@ -2,12 +2,18 @@ import numpy as np
 import logging
 
 __all__ = [
+    'fit_all',
     'fit_one',
     'mcfit',
     'summarize_mcfit'
 ]
 
 logger = logging.getLogger('thermal-dust-model')
+
+def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
+            material_names=None):
+    from astropy.table import Table
+    return Table()
 
 def fit_one(fluxd, unc, mfluxd, method='nnls', guess=None, **kwargs):
     """Fit model dust scale factors to a spectrum.
