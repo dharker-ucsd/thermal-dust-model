@@ -47,43 +47,62 @@ unc = args.spectrum[args.columns[2]]
 # Open IDL save files with idl.readsav, preserve this order:
 files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
+mfluxd = [m['flux'] for m in models]
 
 # Pick out rh
-i_rh = np.array([np.isclose(args.rh, rh) for rh in models[0]['r_h']])
-assert any(i_rh), 'Error: rh={} not in {}'.format(args.rh, models[0]['r_h'])
-#s = i_rh  # subscripts for flux, first axis is wavelength, second is rh
-#mfluxd = np.array([m['flux'][:, i] for m in models])
+i = np.array([np.isclose(args.rh, rh) for rh in models[0]['r_h']])
+assert any(i), 'rh={} not in {}'.format(args.rh, models[0]['r_h'])
+assert sum(i) == 1, 'Found more than one matching r_h for {}: {}'.format(args.rh, models[0]['r_h'])
+i = np.flatnonzero(i)[0]
+mfluxd = [m[:, i] for m in mfluxd]
 
 # Pick out GSDs
-gsds = models[0]['gsd']
-i_gsd = np.array([re.match(args.gsd, gsd.decode()) is not None for gsd in gsds])
-assert any(i_gsd), 'Error: None of gsd={} in {}'.format(args.gsd, gsds)
-gsds = gsds[i_gsd]
-#s.append(i)  # next axis is gsd
+gsds = models[0]['gsd'].astype(str)  # IDL bytes to python3 string
+i = np.array([re.match(args.gsd, gsd) is not None for gsd in gsds])
+assert any(i), 'Error: None of gsd={} in {}'.format(args.gsd, gsds)
+gsds = gsds[i]
+mfluxd = [m[:, i] for m in mfluxd]
+
+# For fractal dimension, amorphous grains have 5 values, but
+# crystalline only have 1.  Pick out the user's requested D values for
+# the amorphous grains, then for the crystals repeat their values
+# along the D axis to match the number of user requested amorphous Ds.
+# For example:
+#
+#  >>> mfluxd[0].shape  # amorphous dust
+#  (300, 1, 59, 5, 1)   # D axis has length 5
+#  >>> mfluxd[3].shape  # crystalline dust
+#  (300, 1, 59, 1, 6)   # D axis has length 1
+#  >>> np.repeat(mfluxd[3], 5, 3).shape  # repeat cyrstalline Ds 5 times
+#  (300, 1, 59, 5, 6)
 
 # Pick out D, only for amorphous
 Ds = models[0]['D']
-i_D = []
-for D in Ds:
-    for d in args.D:
-        if np.isclose(d, D):
-            i_D.append(True)
+i = np.zeros(len(Ds), bool)
+for j in range(len(Ds)):
+    for D in args.D:
+        if np.isclose(D, Ds[j]):
+            i[j] = True
             break
-    else:
-        i_D.append(False)
-assert any(i_D), 'Error: None of D={} in {}'.format(args.D, Ds)
-Ds = Ds[i_D]
-#s.append(i)  # next axis is D
+Ds = Ds[i]
+
+assert any(i), 'Error: None of D={} in {}'.format(args.D, Ds)
+for j in range(3):  # amorphous dust
+    mfluxd[j] = mfluxd[j][:, :, i]
+
+for j in range(3, 5):  # crystalline dust
+    mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2)
 
 # Pick out dirtiness, this is not user configurable
-#s.append(-1)  # works for all materials, picks out the dirtiest crystals
+mfluxd = [m[..., -1] for m in mfluxd]
+
+# Now all flux density arrays should have the same shape and may be
+# combined.
+mfluxd = np.array(mfluxd)
 
 # Pass models to fit to dust.fit_all.
 # mfluxd will be an array with axis order: material, wavelength, D, gsd
 mwave = models[0]['wave_f']
-amorphous = np.array([m['flux'][:, i_rh, i_gsd, i_D, 0] for m in models[:3]])
-crystalline = np.array([m['flux'][:, i_rh, i_gsd, 0, -1] for m in models[3:]])
-stop
 
 tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (Ds, gsds),
                    parameter_names=('D', 'GSD'),
