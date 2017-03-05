@@ -1,11 +1,14 @@
 #!/usr/bin/python3
 import os
 import re
+import sys
 import argparse
+from collections import OrderedDict
 import numpy as np
 from scipy.io import idl
 import astropy.units as u
 from astropy.io import ascii
+from astropy.table import Table
 import dust
 
 def list_of(type):
@@ -27,9 +30,9 @@ def list_of(type):
     return lambda s: [type(item) for item in s.split(',')]
 
 parser = argparse.ArgumentParser(description='Fit a comet spectrum with a model stored in IDL save file format.')
-parser.add_argument('spectrum', type=ascii.read, help='Name of the comet spectrum.  Must be a readable astropy Table, with wavelength in units of μm, and spectral data in units of flux density.')
+parser.add_argument('spectrum', help='Name of the comet spectrum.  Must be a readable astropy Table, with wavelength in units of μm, and spectral data in units of flux density.')
 parser.add_argument('rh', type=float, help='Use the model evaulated at this heliocentric distance in units of au.')
-parser.add_argument('output', help='File name prefix for best-fit results.')
+parser.add_argument('out_prefix', help='File name prefix for best-fit results.')
 parser.add_argument('-n', type=int, default=10000, help='Number of Monte Carlo simulations to run for final uncertainty estimates.  Set to 0 to skip MC fitting.')
 parser.add_argument('-D', type=list_of(float), default=[3, 2.857, 2.727, 2.609, 2.5], help='Fit these specific fractal dimensions, default=3,2.857,2.727,2.609,2.5.')
 parser.add_argument('--gsd', default='(pow|han).*', help='Regular expression used to determine which GSD models to fit.')
@@ -39,15 +42,34 @@ parser.add_argument('--overwrite', action='store_true', help='Overwrite previous
 
 args = parser.parse_args()
 
-# Set up comet spectrum, taking advantage of argparse magic:
-wave = args.spectrum[args.columns[0]]
-fluxd = args.spectrum[args.columns[1]]
-unc = args.spectrum[args.columns[2]]
+# output file check
+filenames = {
+    'all': '{}.ALL.txt'.format(args.out_prefix),
+    'best': '{}.BEST.txt'.format(args.out_prefix),
+    'mcfit': '{}.MCALL.fits'.format(args.out_prefix),
+    'mcbest': '{}.MCBEST.txt'.format(args.out_prefix)
+}
+for f in filenames.values():
+    if os.path.exists(f):
+        if args.overwrite:
+            os.unlink(f)
+        else:
+            raise AssertionError('{} exists, remove or use --overwrite')
+
+assert args.unit.is_equivalent('W/(cm2 um)', u.spectral_density(1 * u.um)), 'Comet spectrum must be in units of flux density.'
+
+# Set up comet spectrum
+spectrum = ascii.read(args.spectrum)
+wave = spectrum[args.columns[0]]
+fluxd = spectrum[args.columns[1]]
+unc = spectrum[args.columns[2]]
 
 # Open IDL save files with idl.readsav, preserve this order:
 files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
-mfluxd = [m['flux'] for m in models]
+mwave = models[0]['wave_f']
+conv = u.Unit('W/(cm2 um)').to(args.unit, 1.0, u.spectral_density(mwave * u.um))
+mfluxd = [m['flux'] * conv for m in models]  # now in units of args.unit
 
 # Pick out rh
 i = np.array([np.isclose(args.rh, rh) for rh in models[0]['r_h']])
@@ -102,15 +124,35 @@ mfluxd = np.array(mfluxd)
 
 # Pass models to fit to dust.fit_all.
 # mfluxd will be an array with axis order: material, wavelength, D, gsd
-mwave = models[0]['wave_f']
-
+material_names = ('ap', 'ao', 'ac', 'co', 'cp')
 tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (Ds, gsds),
-                   parameter_names=('D', 'GSD'),
-                   material_names=('ap', 'ao', 'ac', 'co', 'cp'))
+                   parameter_names=('D', 'GSD'), material_names=material_names)
+
+meta = OrderedDict()
+meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
+meta['comet spectrum'] = args.spectrum
+meta['wavelength unit'] = 'um'
+meta['flux density unit'] = str(args.unit)
+tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 
 # Save fit_all results.
+tab.write(filenames['all'], format='ascii.fixed_width_two_line')
 
-# Determine best model.
+# Determine best model, save it.
+i = tab['rchisq'].argmin()
+Np = np.array([tab[i][m] for m in material_names])
+j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
+f = mfluxd[..., j, k]  # pick out best model fluxes
+f = Np[:, np.newaxis] * f  # scale model
+best_tab = Table(names=('wave', ) + material_names, data=np.vstack((mwave[np.newaxis], f)).T)
+
+meta['rchisq'] = tab[i]['rchisq']
+meta['Np'] = dict()
+for m in material_names:
+    meta['Np'][m] = tab[i][m]
+best_tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
+
+best_tab.write(filenames['best'], format='ascii.fixed_width_two_line')
 
 # If If args.n > 0, pass to dust.fit_uncertainty.  Otherwise, set uncertainty
 # to 0?  Save all mcfits.

@@ -12,8 +12,34 @@ logger = logging.getLogger('thermal-dust-model')
 
 def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
             material_names=None):
+    """Dummy function for testing."""
     from astropy.table import Table
-    return Table()
+    from itertools import product
+
+    n = len(material_names)
+    if material_names is None:
+        material_names = ['mat{}'.format(i) for i in range(mfluxd.shape[0])]
+
+    if parameter_names is None:
+        parameter_names = ['p{}'.format(i) for i in range(len(parameters))]
+
+    names = parameter_names + material_names + ('rchisq',)
+    dtype = []
+    for p in parameters:
+        if type(p) == str:
+            dtype.append((str, 128))
+        elif type(p) == np.ndarray:
+            dtype.append(p.dtype)
+        else:
+            dtype.append(type(p))
+    dtype += [float] * (n + 1)
+
+    tab = Table(names=names, dtype=dtype)
+
+    for p in product(*parameters):
+        tab.add_row(np.r_[p, np.random.rand(n + 1)])
+
+    return tab
 
 def fit_one(fluxd, unc, mfluxd, method='nnls', guess=None, **kwargs):
     """Fit model dust scale factors to a spectrum.
