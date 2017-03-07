@@ -264,7 +264,7 @@ class Material:
         log_ar = np.log10(ar)
         n = max(log_ar.ptp(), 1) * 10000
         arr = np.logspace(log_ar[0], log_ar[1], n)
-        dmda = 4e-12 / 3 * pi * arr**3 * self.gsd(arr) * self.rho0 * (1 - self.porosity(arr))
+        dmda = self.mass(a) * self.gsd(arr)
         
         return avint(arr,dmda,ar)
 
