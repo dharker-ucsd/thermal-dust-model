@@ -220,3 +220,33 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
             col, c, ul - c, ll - c))
 
     return summary
+
+def fit_uncertainties(wave, fluxd, mwave, mfluxd, best):
+    """Derive uncertainties on direct and derived model parameters.
+
+    Uses the Monte Carlo method to explore parameter space.
+
+    Parameters
+    ----------
+    wave : ndarray
+      Wavelengths of spectrum to fit, units of μm.
+    fluxd : ndarray
+      Flux density of spectrum to fit, same units as `mfluxd`.
+    mwave : ndarray
+      Spectral wavelengths for the model, units of μm.
+    mfluxd : ndarray
+      Model flux densities in an `NxM` array, where `N` is the number
+      of materials, and `M` is the number of wavelengths.
+    best : ModelResults
+      Nominal best-fit for given spectrum and model.
+    
+    Results
+    -------
+    mcfits : ModelResults
+      All the Monte Carlo results.
+    summary : dict
+      A summary of the Monte Carlo analysis for all direct and derived
+      model parameters.
+
+    """
+    return None, None

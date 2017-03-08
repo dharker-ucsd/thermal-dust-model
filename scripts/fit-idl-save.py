@@ -125,6 +125,13 @@ mfluxd = np.array(mfluxd)
 # Pass models to fit to dust.fit_all.
 # mfluxd will be an array with axis order: material, wavelength, D, gsd
 material_names = ('ap', 'ao', 'ac', 'co', 'cp')
+material_classes = (
+    dust.AmorphousPyroxene50,
+    dust.AmorphousOlivine50,
+    dust.AmorphousCarbon,
+    dust.HotOrthoEnstatite,
+    dust.HotForsterite95
+)
 tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (Ds, gsds),
                    parameter_names=('D', 'GSD'), material_names=material_names)
 
@@ -141,20 +148,54 @@ tab.write(filenames['all'], format='ascii.fixed_width_two_line')
 # Determine best model, save it.
 i = tab['rchisq'].argmin()
 Np = np.array([tab[i][m] for m in material_names])
+D = tab[i]['D']
+gsd_name = tab[i]['gsd']
+rchisq = tab[i]['rchisq']
+dof = len(wave) - len(material_names) - 1
+
 j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
 f = mfluxd[..., j, k]  # pick out best model fluxes
 f = Np[:, np.newaxis] * f  # scale model
 best_tab = Table(names=('wave', ) + material_names, data=np.vstack((mwave[np.newaxis], f)).T)
 
-meta['rchisq'] = tab[i]['rchisq']
+meta['rchisq'] = rchisq
+meta['dof'] = dof
 meta['Np'] = dict()
-for m in material_names:
+Np = np.empty(len(material_names))
+for j, m in enumerate(material_names):
     meta['Np'][m] = tab[i][m]
+    Np[j] = tab[i][m]
 best_tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 
 best_tab.write(filenames['best'], format='ascii.fixed_width_two_line')
 
-# If If args.n > 0, pass to dust.fit_uncertainty.  Otherwise, set uncertainty
-# to 0?  Save all mcfits.
+# Save direct and derived parameters.
+materials = []
+porosity = dust.FractallyPorous(0.1, D)
+if gsd_name.startswith('han'):
+    N, M = [float(x) for x in gsd_name.split()[1:]]
+    gsd = dust.HannerGSD(0.1, N, M)
+elif gsd_name.startswith('pow'):
+    N = float(gsd_name.split()[1])
+    gsd = dust.PowerLaw(0.1, N)
+
+for i in range(len(material_names)):
+    if material_names[i] in ['ap', 'ao', 'ac']:
+        # use fractal porosity
+        materials.append(material_classes[i](porosity=porosity, gsd=gsd))
+    else:
+        # solid dust
+        materials.append(material_classes[i](porosity=dust.Solid(), gsd=gsd))
 
 # Save best model results.
+best = dust.ModelResults(materials, Np, rchisq, dof)
+tab = best.table()
+# put table into dictionary, save to file
+
+# If args.n > 0, pass to dust.fit_uncertainty.  Save all mcfits.
+if args.n > 0:
+    mcfits, mcsummary = dust.fit_uncertainties(wave, fluxd, mwave, mfluxd, best)
+    mcfits.table().writeto(filenames['mcfit'])
+    
+    # save mcsummary to file
+
