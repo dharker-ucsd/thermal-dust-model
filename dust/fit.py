@@ -2,12 +2,69 @@ import numpy as np
 import logging
 
 __all__ = [
+    'fit_all',
     'fit_one',
     'mcfit',
     'summarize_mcfit'
 ]
 
 logger = logging.getLogger('thermal-dust-model')
+
+def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
+            material_names=None):
+    """Dummy function for testing."""
+
+
+    from astropy.table import Table
+    from itertools import product
+    from dust import util
+
+    n = len(material_names)
+    if material_names is None:
+        material_names = ['mat{}'.format(i) for i in range(mfluxd.shape[0])]
+
+    if parameter_names is None:
+        parameter_names = ['p{}'.format(i) for i in range(len(parameters))]
+
+    names = parameter_names + material_names + ('rchisq',)
+    dtype = []
+    for p in parameters:
+        if type(p) == str:
+            dtype.append((str, 128))
+        elif type(p) == np.ndarray:
+            dtype.append(p.dtype)
+        else:
+            dtype.append(type(p))
+    dtype += [float] * (n + 1)
+
+    tab = Table(names=names, dtype=dtype)
+
+    # Loop over each parameter combination
+    for indices in product(*[range(x) for x in mfluxd.shape[2:]]):
+        i = (slice(None), slice(None)) + indices
+
+        # Interpolate over each material onto the wavelength grid of the observed spectrum
+        mfluxd_i = np.zeros((n, len(wave)))
+        for j in np.arange(0, n):
+            mfluxd_i[j,:] = util.interp_model2comet(wave, mwave, mfluxd[i][j,:])
+
+        # Calculate the best fit.
+        best, chi2 = fit_one(fluxd, unc, mfluxd_i)
+
+        # To get the parameters for the table
+        row = []
+        for k, p in zip(indices, parameters):  # pairs up each index with each parameter
+          row.append(p[k])
+
+        # Add the best fit and chi2
+        row.extend(best)
+        row.append(chi2)  # or rchisq
+
+        # Add the whole row to the table
+        tab.add_row(row)
+
+
+    return tab
 
 def fit_one(fluxd, unc, mfluxd, method='nnls', guess=None, **kwargs):
     """Fit model dust scale factors to a spectrum.
@@ -188,3 +245,33 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
             col, c, ul - c, ll - c))
 
     return summary
+
+def fit_uncertainties(wave, fluxd, mwave, mfluxd, best):
+    """Derive uncertainties on direct and derived model parameters.
+
+    Uses the Monte Carlo method to explore parameter space.
+
+    Parameters
+    ----------
+    wave : ndarray
+      Wavelengths of spectrum to fit, units of μm.
+    fluxd : ndarray
+      Flux density of spectrum to fit, same units as `mfluxd`.
+    mwave : ndarray
+      Spectral wavelengths for the model, units of μm.
+    mfluxd : ndarray
+      Model flux densities in an `NxM` array, where `N` is the number
+      of materials, and `M` is the number of wavelengths.
+    best : ModelResults
+      Nominal best-fit for given spectrum and model.
+    
+    Results
+    -------
+    mcfits : ModelResults
+      All the Monte Carlo results.
+    summary : dict
+      A summary of the Monte Carlo analysis for all direct and derived
+      model parameters.
+
+    """
+    return None, None
