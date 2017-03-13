@@ -244,7 +244,7 @@ def fit_uncertainties(wave, fluxd, mwave, mfluxd, best):
     -------
     mcfits : ModelResults
       All the Monte Carlo results.
-    summary : dict
+    mcbest : dict
       A summary of the Monte Carlo analysis for all direct and derived
       model parameters.
 

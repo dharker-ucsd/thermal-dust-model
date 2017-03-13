@@ -46,6 +46,7 @@ args = parser.parse_args()
 filenames = {
     'all': '{}.ALL.txt'.format(args.out_prefix),
     'best': '{}.BEST.txt'.format(args.out_prefix),
+    'bestmodel': '{}.BESTMODEL.txt'.format(args.out_prefix),
     'mcfit': '{}.MCALL.fits'.format(args.out_prefix),
     'mcbest': '{}.MCBEST.txt'.format(args.out_prefix)
 }
@@ -149,14 +150,14 @@ tab.write(filenames['all'], format='ascii.fixed_width_two_line')
 i = tab['rchisq'].argmin()
 Np = np.array([tab[i][m] for m in material_names])
 D = tab[i]['D']
-gsd_name = tab[i]['gsd']
+gsd_name = tab[i]['GSD']
 rchisq = tab[i]['rchisq']
 dof = len(wave) - len(material_names) - 1
 
 j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
 f = mfluxd[..., j, k]  # pick out best model fluxes
 f = Np[:, np.newaxis] * f  # scale model
-best_tab = Table(names=('wave', ) + material_names, data=np.vstack((mwave[np.newaxis], f)).T)
+best_model = Table(names=('wave', ) + material_names, data=np.vstack((mwave[np.newaxis], f)).T)
 
 meta['rchisq'] = rchisq
 meta['dof'] = dof
@@ -165,9 +166,9 @@ Np = np.empty(len(material_names))
 for j, m in enumerate(material_names):
     meta['Np'][m] = tab[i][m]
     Np[j] = tab[i][m]
-best_tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
+best_model.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 
-best_tab.write(filenames['best'], format='ascii.fixed_width_two_line')
+best_model.write(filenames['bestmodel'], format='ascii.fixed_width_two_line')
 
 # Save direct and derived parameters.
 materials = []
@@ -184,18 +185,19 @@ for i in range(len(material_names)):
         # use fractal porosity
         materials.append(material_classes[i](porosity=porosity, gsd=gsd))
     else:
-        # solid dust
-        materials.append(material_classes[i](porosity=dust.Solid(), gsd=gsd))
+        # crystals are solidn and do not accept porosity models
+        materials.append(material_classes[i](gsd=gsd))
 
 # Save best model results.
 best = dust.ModelResults(materials, Np, rchisq, dof)
-tab = best.table()
-# put table into dictionary, save to file
+best.table().write(filenames['best'], format='ascii.fixed_width_two_line')
 
 # If args.n > 0, pass to dust.fit_uncertainty.  Save all mcfits.
 if args.n > 0:
-    mcfits, mcsummary = dust.fit_uncertainties(wave, fluxd, mwave, mfluxd, best)
-    mcfits.table().writeto(filenames['mcfit'])
+    mcall, mcbest = dust.fit_uncertainties(wave, fluxd, mwave, mfluxd, best)
+    mcall.table().writeto(filenames['mcall'], format='ascii.fixed_width_two_line')
     
-    # save mcsummary to file
+    mcbest.writeto(filenames['mcbest'], format='ascii.fixed_width_two_line')
+
+    
 
