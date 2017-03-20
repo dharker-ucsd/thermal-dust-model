@@ -12,9 +12,44 @@ logger = logging.getLogger('thermal-dust-model')
 
 def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
             material_names=None):
-    """Dummy function for testing."""
+    """Run through a range of models with various parameters to fit
+        to a spectrum
+
+    Parameters
+    ----------
+    wave : ndarray
+      Wavelengths of spectrum to fit, units of μm.
+    fluxd : ndarray
+      The observed flux density.
+    unc : ndarray
+      `fluxd` measurement uncertainties.
+    mwave : ndarray
+      Wavelengths of models, units of μm.
+    mfluxd : ndarray
+      NxMx#parameters array of model flux densities, where `N` is the number of
+      dust species, `M` is the spectral dimension, and each subsequent dimension
+      corresponds to a separate parameter (for example 'D' or 'GSD'.  Each element
+      along axis `M` corresponds to the same element in the `fluxd`
+      and `unc` arrays.
+    parameters : ?
+      An input array with the parameters corresponding to the parameters in mfluxd
+    parameter_name : ?
+      A list(?) with the parameter names corresponding to the input parameters
+    material_names = ?
+      A list(?) with the material names corresponding to the number of dust species 
+      in the N dimension of mfluxd
+
+    Returns
+    -------
+    tab : table
+      Table with the best-fit dust model scale factors over each parameter.
+
+"""
+
+
     from astropy.table import Table
     from itertools import product
+    from dust import util
 
     n = len(material_names)
     if material_names is None:
@@ -36,8 +71,29 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
 
     tab = Table(names=names, dtype=dtype)
 
-    for p in product(*parameters):
-        tab.add_row(np.r_[p, np.random.rand(n + 1)])
+    # Loop over each parameter combination
+    for indices in product(*[range(x) for x in mfluxd.shape[2:]]):
+        i = (slice(None), slice(None)) + indices
+
+        # Interpolate over each material onto the wavelength grid of the observed spectrum
+        mfluxd_i = np.zeros((n, len(wave)))
+        for j in np.arange(0, n):
+            mfluxd_i[j,:] = util.interp_model2comet(wave, mwave, mfluxd[i][j,:])
+
+        # Calculate the best fit.
+        best, chi2 = fit_one(fluxd, unc, mfluxd_i)
+
+        # To get the parameters for the table
+        row = []
+        for k, p in zip(indices, parameters):  # pairs up each index with each parameter
+          row.append(p[k])
+
+        # Add the best fit and chi2
+        row.extend(best)
+        row.append(chi2)  # or rchisq
+
+        # Add the whole row to the table
+        tab.add_row(row)
 
     return tab
 
@@ -244,7 +300,9 @@ def fit_uncertainties(wave, fluxd, mwave, mfluxd, best):
     -------
     mcfits : ModelResults
       All the Monte Carlo results.
-    mcbest : dict
+
+    summary : dict
+
       A summary of the Monte Carlo analysis for all direct and derived
       model parameters.
 
