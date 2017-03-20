@@ -44,7 +44,6 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
     tab : table
       Table with the best-fit dust model scale factors over each parameter.
 
-
 """
 
 
@@ -95,7 +94,6 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
 
         # Add the whole row to the table
         tab.add_row(row)
-
 
     return tab
 
@@ -302,7 +300,9 @@ def fit_uncertainties(wave, fluxd, mwave, mfluxd, best):
     -------
     mcfits : ModelResults
       All the Monte Carlo results.
+
     summary : dict
+
       A summary of the Monte Carlo analysis for all direct and derived
       model parameters.
 
