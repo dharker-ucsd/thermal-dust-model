@@ -192,9 +192,9 @@ for i in range(len(material_names)):
 best = dust.ModelResults(materials, Np, rchisq, dof)
 best.table().write(filenames['best'], format='ascii.fixed_width_two_line')
 
-# If args.n > 0, pass to dust.fit_uncertainty.  Save all mcfits.
+# If args.n > 0, pass to dust.fit_uncertainties.  Save all mcfits.
 if args.n > 0:
-    mcall, mcbest = dust.fit_uncertainties(wave, fluxd, mwave, mfluxd, best)
+    mcall, mcbest = dust.fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best)
     mcall.table().writeto(filenames['mcall'], format='ascii.fixed_width_two_line')
     
     mcbest.writeto(filenames['mcbest'], format='ascii.fixed_width_two_line')

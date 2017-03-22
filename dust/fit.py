@@ -161,11 +161,73 @@ def _fit_one_chi2(scales, fluxd, unc, mfluxd):
     logger.debug(scales, chi2)
     return chi2
 
-def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
-    """Derive fit uncertainties using a Monte Carlo approach.
+def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
+                      cl=95, ar=(0.1, 1)):
+    """Fit a spectrum, estimate uncertainties on direct and derived parameters.
+
+    Uses the Monte Carlo method to explore parameter space.
+
+    Parameters
+    ----------
+    wave : ndarray
+      Wavelengths of spectrum to fit, units of μm.
+    fluxd : ndarray
+      Flux density of spectrum to fit, same units as `mfluxd`.
+    unc : ndarray
+      Uncertainties on `fluxd`, same units.
+    mwave : ndarray
+      Spectral wavelengths for the model, units of μm.
+    mfluxd : ndarray
+      Model flux densities in an `NxM` array, where `N` is the number
+      of materials, and `M` is the number of wavelengths.
+    best : ModelResults
+      Nominal best fit for given spectrum and model.
+    nmc : int, optional
+      Number of Monte Carlo simulations to fit.
+    cl : float, optional
+      Confidence level for uncertainties in percentage points.
+    ar : tuple of float, optional
+      Radius range for computing dust masses.
+    **kwargs
+      Keyword arguments for `mcfit`.
+    
+    Results
+    -------
+    mcfits : ModelResults
+      All the Monte Carlo results.
+    summary : Table
+      A summary of the Monte Carlo analysis for all direct and derived
+      model parameters.
+
+    """
+
+    from .results import ModelResults
+    
+    # Interpolate over each material onto the wavelength grid of the
+    # observed spectrum
+    mfluxd_i = np.zeros((n, len(wave)))
+    for j in np.arange(0, n):
+        mfluxd_i[j] = util.interp_model2comet(wave, mwave, mfluxd[i][j])
+
+    # get all Monte Carlo simulations
+    scales, chi2 = mcfit(fluxd, unc, mfluxd, best.scales, nmc, **kwargs)
+
+    # create results object with MC fits
+    mcfits = ModelResults(best.materials, scales, rchisq=chi2 / best.dof,
+                          dof=best.dof)
+
+    # get confidence limits
+    summary = summarize_mcfit(mcfits, best=best, cl=cl, ar=ar)
+
+    return mcfits, summary
+
+def mcfit(fluxd, unc, mfluxd, best, nmc, method='nnls', **kwargs):
+    """Fit a series of statistically equivalent spectra.
+
+    Generally use either (1) `fit_uncertainties`, or (2) `mcfit` and
+    `summarize_mcfit`.
 
     For each run:
-
       1. Generates a new spectrum using the spectral uncertainties and
          a normally distributed variate:
 
@@ -173,7 +235,6 @@ def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
            dfluxd = np.random.rand(n_wave) * unc
            fluxd_new = fluxd + dfluxd
            ```
-
       2. Fit that spectrum, and store the result.
 
     Parameters
@@ -226,6 +287,9 @@ def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
 def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
     """Summarize the results of a Monte Carlo fit.
 
+    Generally use either (1) `fit_uncertainties`, or (2) `mcfit` and
+    `summarize_mcfit`.
+
     Parameters
     ----------
     results : ModelResults
@@ -276,35 +340,3 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
             col, c, ul - c, ll - c))
 
     return summary
-
-def fit_uncertainties(wave, fluxd, mwave, mfluxd, best):
-    """Derive uncertainties on direct and derived model parameters.
-
-    Uses the Monte Carlo method to explore parameter space.
-
-    Parameters
-    ----------
-    wave : ndarray
-      Wavelengths of spectrum to fit, units of μm.
-    fluxd : ndarray
-      Flux density of spectrum to fit, same units as `mfluxd`.
-    mwave : ndarray
-      Spectral wavelengths for the model, units of μm.
-    mfluxd : ndarray
-      Model flux densities in an `NxM` array, where `N` is the number
-      of materials, and `M` is the number of wavelengths.
-    best : ModelResults
-      Nominal best-fit for given spectrum and model.
-    
-    Results
-    -------
-    mcfits : ModelResults
-      All the Monte Carlo results.
-
-    summary : dict
-
-      A summary of the Monte Carlo analysis for all direct and derived
-      model parameters.
-
-    """
-    return None, None
