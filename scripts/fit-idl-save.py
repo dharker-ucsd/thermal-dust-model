@@ -133,8 +133,8 @@ material_classes = (
     dust.HotOrthoEnstatite,
     dust.HotForsterite95
 )
-tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (Ds, gsds),
-                   parameter_names=('D', 'GSD'), material_names=material_names)
+tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
+                   parameter_names=('GSD', 'D'), material_names=material_names)
 
 meta = OrderedDict()
 meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
