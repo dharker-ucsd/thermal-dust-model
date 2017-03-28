@@ -26,25 +26,27 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
     mwave : ndarray
       Wavelengths of models, units of μm.
     mfluxd : ndarray
-      NxMx#parameters array of model flux densities, where `N` is the number of
-      dust species, `M` is the spectral dimension, and each subsequent dimension
-      corresponds to a separate parameter (for example 'D' or 'GSD'.  Each element
-      along axis `M` corresponds to the same element in the `fluxd`
-      and `unc` arrays.
-    parameters : ?
-      An input array with the parameters corresponding to the parameters in mfluxd
-    parameter_name : ?
-      A list(?) with the parameter names corresponding to the input parameters
-    material_names = ?
-      A list(?) with the material names corresponding to the number of dust species 
-      in the N dimension of mfluxd
+      NxMx#parameters array of model flux densities, where `N` is the
+      number of dust species, `M` is the spectral dimension, and each
+      subsequent dimension corresponds to a separate parameter (for
+      example 'D' or 'GSD').  Each element along axis `M` corresponds
+      to the same element in the `fluxd` and `unc` arrays.
+    parameters : array-like
+      An input array with the parameters corresponding to the
+      parameters in `mfluxd`.
+    parameter_name : array-like of strings, optional
+      A list of parameter names corresponding to the input parameters.
+    material_names : array-like of strings, optional
+      A list of material names corresponding to the number of dust
+      species in the N dimension of `mfluxd`.
 
     Returns
     -------
     tab : table
-      Table with the best-fit dust model scale factors over each parameter.
+      Table with the best-fit dust model scale factors over each
+      parameter.
 
-"""
+    """
 
 
     from astropy.table import Table
