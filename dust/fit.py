@@ -308,7 +308,7 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
 
     Returns
     -------
-    summary : dict
+    summary : Table
       The summary.  For each parameter the values are the best fit,
       lower limit, and upper limit.
 
@@ -324,7 +324,13 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
     if best is not None:
         best_tab = best.table(ar=ar)
 
-    summary = dict()
+    names = []
+    dtype = []
+    for i in range(len(tab.colnames)):
+        names.extend(['{}{}'.format(pfx, names[i]) for pfx in ['', '+', '-']))
+        dtype.extend([tab.dtype[i]] * 3)
+
+    summary = Table(names=names, dtype=dtype)
     for col in tab.colnames:
         # find the upper and lower limits
         ll = np.percentile(tab[col], (100 - cl) / 2)
@@ -332,12 +338,14 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
         
         # find the best fit
         if best is None:
-            h = np.histogram(tab[col], range=(ll, ul), bins=31)
+            h = np.histogram(tab[col], range=(ll, ul), bins=bins)
             c = h[1][h[0].argmax()]
         else:
             c = best_tab[col]
 
-        summary[col] = c, ll, ul
+        summary[col] = c
+        summary['+' + col] = ul - c
+        summary['-' + col] = c - ll
         logger.info('{} = {:.4g} +{:.4g} -{:.4g}'.format(
             col, c, ul - c, ll - c))
 
