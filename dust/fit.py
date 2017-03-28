@@ -4,6 +4,7 @@ import logging
 __all__ = [
     'fit_all',
     'fit_one',
+    'fit_uncertainties',
     'mcfit',
     'summarize_mcfit'
 ]
@@ -164,7 +165,7 @@ def _fit_one_chi2(scales, fluxd, unc, mfluxd):
     return chi2
 
 def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
-                      cl=95, ar=(0.1, 1)):
+                      cl=95, ar=(0.1, 1), **kwargs):
     """Fit a spectrum, estimate uncertainties on direct and derived parameters.
 
     Uses the Monte Carlo method to explore parameter space.
@@ -204,15 +205,19 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
     """
 
     from .results import ModelResults
+    from . import util
+
+    assert mfluxd.ndim == 2
+    assert isinstance(best, ModelResults)
     
     # Interpolate over each material onto the wavelength grid of the
     # observed spectrum
-    mfluxd_i = np.zeros((n, len(wave)))
-    for j in np.arange(0, n):
-        mfluxd_i[j] = util.interp_model2comet(wave, mwave, mfluxd[i][j])
+    mfluxd_i = np.zeros((mfluxd.shape[0], len(wave)))
+    for i in np.arange(0, mfluxd.shape[0]):
+        mfluxd_i[i] = util.interp_model2comet(wave, mwave, mfluxd[i])
 
     # get all Monte Carlo simulations
-    scales, chi2 = mcfit(fluxd, unc, mfluxd, best.scales, nmc, **kwargs)
+    scales, chi2 = mcfit(fluxd, unc, mfluxd_i, best.scales, nmc, **kwargs)
 
     # create results object with MC fits
     mcfits = ModelResults(best.materials, scales, rchisq=chi2 / best.dof,
@@ -314,6 +319,7 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
 
     """
 
+    from astropy.table import Table
     from .results import ModelResults
 
     assert isinstance(results, ModelResults)
@@ -327,10 +333,11 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
     names = []
     dtype = []
     for i in range(len(tab.colnames)):
-        names.extend(['{}{}'.format(pfx, names[i]) for pfx in ['', '+', '-']))
+        names.extend(['{}{}'.format(pfx, tab.colnames[i])
+                      for pfx in ['', '+', '-']])
         dtype.extend([tab.dtype[i]] * 3)
 
-    summary = Table(names=names, dtype=dtype)
+    row = [] 
     for col in tab.colnames:
         # find the upper and lower limits
         ll = np.percentile(tab[col], (100 - cl) / 2)
@@ -338,15 +345,15 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
         
         # find the best fit
         if best is None:
-            h = np.histogram(tab[col], range=(ll, ul), bins=bins)
+            h = np.histogram(tab[col].data, range=(ll, ul), bins=bins)
             c = h[1][h[0].argmax()]
         else:
-            c = best_tab[col]
+            c = best_tab[col].data[0]
 
-        summary[col] = c
-        summary['+' + col] = ul - c
-        summary['-' + col] = c - ll
+        row.extend([c, ul - c, c - ll])
         logger.info('{} = {:.4g} +{:.4g} -{:.4g}'.format(
             col, c, ul - c, ll - c))
 
+    summary = Table(names=names, dtype=dtype)
+    summary.add_row(row)
     return summary
