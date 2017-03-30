@@ -9,6 +9,7 @@ from scipy.io import idl
 import astropy.units as u
 from astropy.io import ascii
 from astropy.table import Table
+from astropy import constants as const
 import dust
 
 def list_of(type):
@@ -33,6 +34,7 @@ parser = argparse.ArgumentParser(description='Fit a comet spectrum with a model 
 parser.add_argument('spectrum', help='Name of the comet spectrum.  Must be a readable astropy Table, with wavelength in units of μm, and spectral data in units of flux density.')
 parser.add_argument('rh', type=float, help='Use the model evaulated at this heliocentric distance in units of au.')
 parser.add_argument('out_prefix', help='File name prefix for best-fit results.')
+parser.add_argument('--delta', default=1., type=float, help='The geocentric distance of the comet in AU.')
 parser.add_argument('-n', type=int, default=10000, help='Number of Monte Carlo simulations to run for final uncertainty estimates.  Set to 0 to skip MC fitting.')
 parser.add_argument('-D', type=list_of(float), default=[3, 2.857, 2.727, 2.609, 2.5], help='Fit these specific fractal dimensions, default=3,2.857,2.727,2.609,2.5.')
 parser.add_argument('--gsd', default='(pow|han).*', help='Regular expression used to determine which GSD models to fit.')
@@ -69,8 +71,11 @@ unc = spectrum[args.columns[2]]
 files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 mwave = models[0]['wave_f']
-conv = u.Unit('W/(cm2 um)').to(args.unit, 1.0, u.spectral_density(mwave * u.um))
-mfluxd = [m['flux'] * conv for m in models]  # now in units of args.unit
+if args.unit == 'W/(m2 um)':
+    conv = 1./(const.au.value * args.delta)**2
+else:
+    conv = 1./(const.au.to('cm').value * args.delta)**2
+mfluxd = [m['flux'] * conv * u.Unit(args.unit) for m in models]  # now in units of args.unit
 
 # Pick out rh
 i = np.array([np.isclose(args.rh, rh) for rh in models[0]['r_h']])
