@@ -71,11 +71,15 @@ unc = spectrum[args.columns[2]]
 files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 mwave = models[0]['wave_f']
-if args.unit == 'W/(m2 um)':
-    conv = 1./(const.au.value * args.delta)**2
-else:
-    conv = 1./(const.au.to('cm').value * args.delta)**2
-mfluxd = [m['flux'] * conv * u.Unit(args.unit) for m in models]  # now in units of args.unit
+delta = args.delta * const.au.to('cm').value
+conv = delta**-2 * u.Unit('W/(cm2 um)').to(args.unit, 1.0, u.spectral_density(mwave * u.um))
+
+
+#if args.unit == 'W/(m2 um)':
+#    conv = 1./(const.au.value * args.delta)**2
+#else:
+#    conv = 1./(const.au.to('cm').value * args.delta)**2
+#mfluxd = [m['flux'] * conv * u.Unit(args.unit) for m in models]  # now in units of args.unit
 
 # Pick out rh
 i = np.array([np.isclose(args.rh, rh) for rh in models[0]['r_h']])
