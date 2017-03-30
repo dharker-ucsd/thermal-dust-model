@@ -73,13 +73,7 @@ models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) fo
 mwave = models[0]['wave_f']
 delta = args.delta * const.au.to('cm').value
 conv = delta**-2 * u.Unit('W/(cm2 um)').to(args.unit, 1.0, u.spectral_density(mwave * u.um))
-
-
-#if args.unit == 'W/(m2 um)':
-#    conv = 1./(const.au.value * args.delta)**2
-#else:
-#    conv = 1./(const.au.to('cm').value * args.delta)**2
-#mfluxd = [m['flux'] * conv * u.Unit(args.unit) for m in models]  # now in units of args.unit
+mfluxd = [m['flux'] * conv for m in models]  # unitless but scaled to units of args.unit
 
 # Pick out rh
 i = np.array([np.isclose(args.rh, rh) for rh in models[0]['r_h']])
