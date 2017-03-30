@@ -4,6 +4,7 @@ import logging
 __all__ = [
     'fit_all',
     'fit_one',
+    'fit_uncertainties',
     'mcfit',
     'summarize_mcfit'
 ]
@@ -26,25 +27,27 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
     mwave : ndarray
       Wavelengths of models, units of μm.
     mfluxd : ndarray
-      NxMx#parameters array of model flux densities, where `N` is the number of
-      dust species, `M` is the spectral dimension, and each subsequent dimension
-      corresponds to a separate parameter (for example 'D' or 'GSD'.  Each element
-      along axis `M` corresponds to the same element in the `fluxd`
-      and `unc` arrays.
-    parameters : ?
-      An input array with the parameters corresponding to the parameters in mfluxd
-    parameter_name : ?
-      A list(?) with the parameter names corresponding to the input parameters
-    material_names = ?
-      A list(?) with the material names corresponding to the number of dust species 
-      in the N dimension of mfluxd
+      NxMx#parameters array of model flux densities, where `N` is the
+      number of dust species, `M` is the spectral dimension, and each
+      subsequent dimension corresponds to a separate parameter (for
+      example 'D' or 'GSD').  Each element along axis `M` corresponds
+      to the same element in the `fluxd` and `unc` arrays.
+    parameters : array-like
+      An input array with the parameters corresponding to the
+      parameters in `mfluxd`.
+    parameter_name : array-like of strings, optional
+      A list of parameter names corresponding to the input parameters.
+    material_names : array-like of strings, optional
+      A list of material names corresponding to the number of dust
+      species in the N dimension of `mfluxd`.
 
     Returns
     -------
     tab : table
-      Table with the best-fit dust model scale factors over each parameter.
+      Table with the best-fit dust model scale factors over each
+      parameter.
 
-"""
+    """
 
 
     from astropy.table import Table
@@ -161,11 +164,77 @@ def _fit_one_chi2(scales, fluxd, unc, mfluxd):
     logger.debug(scales, chi2)
     return chi2
 
-def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
-    """Derive fit uncertainties using a Monte Carlo approach.
+def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
+                      cl=95, ar=(0.1, 1), **kwargs):
+    """Fit a spectrum, estimate uncertainties on direct and derived parameters.
+
+    Uses the Monte Carlo method to explore parameter space.
+
+    Parameters
+    ----------
+    wave : ndarray
+      Wavelengths of spectrum to fit, units of μm.
+    fluxd : ndarray
+      Flux density of spectrum to fit, same units as `mfluxd`.
+    unc : ndarray
+      Uncertainties on `fluxd`, same units.
+    mwave : ndarray
+      Spectral wavelengths for the model, units of μm.
+    mfluxd : ndarray
+      Model flux densities in an `NxM` array, where `N` is the number
+      of materials, and `M` is the number of wavelengths.
+    best : ModelResults
+      Nominal best fit for given spectrum and model.
+    nmc : int, optional
+      Number of Monte Carlo simulations to fit.
+    cl : float, optional
+      Confidence level for uncertainties in percentage points.
+    ar : tuple of float, optional
+      Radius range for computing dust masses.
+    **kwargs
+      Keyword arguments for `mcfit`.
+    
+    Results
+    -------
+    mcfits : ModelResults
+      All the Monte Carlo results.
+    summary : Table
+      A summary of the Monte Carlo analysis for all direct and derived
+      model parameters.
+
+    """
+
+    from .results import ModelResults
+    from . import util
+
+    assert mfluxd.ndim == 2
+    assert isinstance(best, ModelResults)
+    
+    # Interpolate over each material onto the wavelength grid of the
+    # observed spectrum
+    mfluxd_i = np.zeros((mfluxd.shape[0], len(wave)))
+    for i in np.arange(0, mfluxd.shape[0]):
+        mfluxd_i[i] = util.interp_model2comet(wave, mwave, mfluxd[i])
+
+    # get all Monte Carlo simulations
+    scales, chi2 = mcfit(fluxd, unc, mfluxd_i, best.scales, nmc, **kwargs)
+
+    # create results object with MC fits
+    mcfits = ModelResults(best.materials, scales, rchisq=chi2 / best.dof,
+                          dof=best.dof)
+
+    # get confidence limits
+    summary = summarize_mcfit(mcfits, best=best, cl=cl, ar=ar)
+
+    return mcfits, summary
+
+def mcfit(fluxd, unc, mfluxd, best, nmc, method='nnls', **kwargs):
+    """Fit a series of statistically equivalent spectra.
+
+    Generally use either (1) `fit_uncertainties`, or (2) `mcfit` and
+    `summarize_mcfit`.
 
     For each run:
-
       1. Generates a new spectrum using the spectral uncertainties and
          a normally distributed variate:
 
@@ -173,7 +242,6 @@ def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
            dfluxd = np.random.rand(n_wave) * unc
            fluxd_new = fluxd + dfluxd
            ```
-
       2. Fit that spectrum, and store the result.
 
     Parameters
@@ -226,6 +294,9 @@ def mcfit(fluxd, unc, mfluxd, best, nmc=10000, method='nnls', **kwargs):
 def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
     """Summarize the results of a Monte Carlo fit.
 
+    Generally use either (1) `fit_uncertainties`, or (2) `mcfit` and
+    `summarize_mcfit`.
+
     Parameters
     ----------
     results : ModelResults
@@ -242,12 +313,13 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
 
     Returns
     -------
-    summary : dict
+    summary : Table
       The summary.  For each parameter the values are the best fit,
       lower limit, and upper limit.
 
     """
 
+    from astropy.table import Table
     from .results import ModelResults
 
     assert isinstance(results, ModelResults)
@@ -258,7 +330,14 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
     if best is not None:
         best_tab = best.table(ar=ar)
 
-    summary = dict()
+    names = []
+    dtype = []
+    for i in range(len(tab.colnames)):
+        names.extend(['{}{}'.format(pfx, tab.colnames[i])
+                      for pfx in ['', '+', '-']])
+        dtype.extend([tab.dtype[i]] * 3)
+
+    row = [] 
     for col in tab.colnames:
         # find the upper and lower limits
         ll = np.percentile(tab[col], (100 - cl) / 2)
@@ -266,45 +345,15 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
         
         # find the best fit
         if best is None:
-            h = np.histogram(tab[col], range=(ll, ul), bins=31)
+            h = np.histogram(tab[col].data, range=(ll, ul), bins=bins)
             c = h[1][h[0].argmax()]
         else:
-            c = best_tab[col]
+            c = best_tab[col].data[0]
 
-        summary[col] = c, ll, ul
+        row.extend([c, ul - c, c - ll])
         logger.info('{} = {:.4g} +{:.4g} -{:.4g}'.format(
             col, c, ul - c, ll - c))
 
+    summary = Table(names=names, dtype=dtype)
+    summary.add_row(row)
     return summary
-
-def fit_uncertainties(wave, fluxd, mwave, mfluxd, best):
-    """Derive uncertainties on direct and derived model parameters.
-
-    Uses the Monte Carlo method to explore parameter space.
-
-    Parameters
-    ----------
-    wave : ndarray
-      Wavelengths of spectrum to fit, units of μm.
-    fluxd : ndarray
-      Flux density of spectrum to fit, same units as `mfluxd`.
-    mwave : ndarray
-      Spectral wavelengths for the model, units of μm.
-    mfluxd : ndarray
-      Model flux densities in an `NxM` array, where `N` is the number
-      of materials, and `M` is the number of wavelengths.
-    best : ModelResults
-      Nominal best-fit for given spectrum and model.
-    
-    Results
-    -------
-    mcfits : ModelResults
-      All the Monte Carlo results.
-
-    summary : dict
-
-      A summary of the Monte Carlo analysis for all direct and derived
-      model parameters.
-
-    """
-    return None, None

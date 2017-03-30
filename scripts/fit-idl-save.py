@@ -47,7 +47,7 @@ filenames = {
     'all': '{}.ALL.txt'.format(args.out_prefix),
     'best': '{}.BEST.txt'.format(args.out_prefix),
     'bestmodel': '{}.BESTMODEL.txt'.format(args.out_prefix),
-    'mcfit': '{}.MCALL.fits'.format(args.out_prefix),
+    'mcall': '{}.MCALL.fits'.format(args.out_prefix),
     'mcbest': '{}.MCBEST.txt'.format(args.out_prefix)
 }
 for f in filenames.values():
@@ -155,8 +155,8 @@ rchisq = tab[i]['rchisq']
 dof = len(wave) - len(material_names) - 1
 
 j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
-f = mfluxd[..., j, k]  # pick out best model fluxes
-f = Np[:, np.newaxis] * f  # scale model
+mfluxd_best = mfluxd[..., j, k]  # pick out best model fluxes
+f = Np[:, np.newaxis] * mfluxd_best  # scale model
 best_model = Table(names=('wave', ) + material_names, data=np.vstack((mwave[np.newaxis], f)).T)
 
 meta['rchisq'] = rchisq
@@ -189,15 +189,16 @@ for i in range(len(material_names)):
         materials.append(material_classes[i](gsd=gsd))
 
 # Save best model results.
-best = dust.ModelResults(materials, Np, rchisq, dof)
-best.table().write(filenames['best'], format='ascii.fixed_width_two_line')
+best_results = dust.ModelResults(materials, Np, rchisq, dof)
+best_results.table().write(filenames['best'],
+                           format='ascii.fixed_width_two_line')
 
-# If args.n > 0, pass to dust.fit_uncertainty.  Save all mcfits.
+# If args.n > 0, pass to dust.fit_uncertainties.  Save all mcfits.
 if args.n > 0:
-    mcall, mcbest = dust.fit_uncertainties(wave, fluxd, mwave, mfluxd, best)
-    mcall.table().writeto(filenames['mcall'], format='ascii.fixed_width_two_line')
+    mcall, mcbest = dust.fit_uncertainties(wave, fluxd, unc, mwave,
+                                           mfluxd_best, best_results)
+    mcall.table().write(filenames['mcall'],
+                        format='ascii.fixed_width_two_line')
     
-    mcbest.writeto(filenames['mcbest'], format='ascii.fixed_width_two_line')
-
-    
-
+    mcbest.write(filenames['mcbest'],
+                 format='ascii.fixed_width_two_line')

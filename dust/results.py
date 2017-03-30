@@ -23,7 +23,7 @@ class ModelResults:
 
     """
 
-    def __init__(self, materials, scales, gsd=None, rchisq=None, dof=None):
+    def __init__(self, materials, scales, rchisq=None, dof=None):
         from .materials import Material
 
         assert all([isinstance(m, Material) for m in materials])
