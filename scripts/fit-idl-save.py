@@ -133,8 +133,8 @@ material_classes = (
     dust.AmorphousPyroxene50,
     dust.AmorphousOlivine50,
     dust.AmorphousCarbon,
-    dust.HotOrthoEnstatite,
-    dust.HotForsterite95
+    dust.HotForsterite95,
+    dust.HotOrthoEnstatite
 )
 tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
                    parameter_names=('GSD', 'D'), material_names=material_names)
@@ -156,6 +156,7 @@ i = tab['rchisq'].argmin()
 Np = np.array([tab[i][m] for m in material_names])
 D = tab[i]['D']
 gsd_name = tab[i]['GSD']
+print(gsd_name)
 rchisq = tab[i]['rchisq']
 dof = len(wave) - len(material_names) - 1
 
@@ -166,9 +167,9 @@ best_model = Table(names=('wave', 'total', ) + material_names, data=np.vstack((m
 
 meta['rchisq'] = rchisq
 meta['dof'] = dof
-meta['GSD'] = gsds[j]
-meta['D'] = Ds[k]
-meta['Np'] = dict()
+meta['GSD'] = gsd_name 
+meta['D'] = D 
+meta['Np'] = OrderedDict()
 Np = np.empty(len(material_names))
 for j, m in enumerate(material_names):
     meta['Np'][m] = tab[i][m]
