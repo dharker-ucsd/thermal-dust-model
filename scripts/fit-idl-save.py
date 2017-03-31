@@ -144,6 +144,8 @@ meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
 meta['comet spectrum'] = args.spectrum
 meta['wavelength unit'] = 'um'
 meta['flux density unit'] = str(args.unit)
+meta['r_h (AU)'] = args.rh
+meta['Delta (AU)'] = args.delta
 tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 
 # Save fit_all results.
@@ -160,10 +162,12 @@ dof = len(wave) - len(material_names) - 1
 j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
 mfluxd_best = mfluxd[..., j, k]  # pick out best model fluxes
 f = Np[:, np.newaxis] * mfluxd_best  # scale model
-best_model = Table(names=('wave', ) + material_names, data=np.vstack((mwave[np.newaxis], f)).T)
+best_model = Table(names=('wave', 'total', ) + material_names, data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T)
 
 meta['rchisq'] = rchisq
 meta['dof'] = dof
+meta['GSD'] = gsds[j]
+meta['D'] = Ds[k]
 meta['Np'] = dict()
 Np = np.empty(len(material_names))
 for j, m in enumerate(material_names):
@@ -203,5 +207,6 @@ if args.n > 0:
     mcall.table().write(filenames['mcall'],
                         format='ascii.fixed_width_two_line')
     
+    mcbest.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
     mcbest.write(filenames['mcbest'],
                  format='ascii.fixed_width_two_line')
