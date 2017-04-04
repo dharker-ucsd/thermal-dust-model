@@ -9,6 +9,7 @@ from scipy.io import idl
 import astropy.units as u
 from astropy.io import ascii
 from astropy.table import Table
+from astropy import constants as const
 import dust
 
 def list_of(type):
@@ -33,6 +34,7 @@ parser = argparse.ArgumentParser(description='Fit a comet spectrum with a model 
 parser.add_argument('spectrum', help='Name of the comet spectrum.  Must be a readable astropy Table, with wavelength in units of μm, and spectral data in units of flux density.')
 parser.add_argument('rh', type=float, help='Use the model evaulated at this heliocentric distance in units of au.')
 parser.add_argument('out_prefix', help='File name prefix for best-fit results.')
+parser.add_argument('--delta', default=1., type=float, help='The geocentric distance of the comet in AU.')
 parser.add_argument('-n', type=int, default=10000, help='Number of Monte Carlo simulations to run for final uncertainty estimates.  Set to 0 to skip MC fitting.')
 parser.add_argument('-D', type=list_of(float), default=[3, 2.857, 2.727, 2.609, 2.5], help='Fit these specific fractal dimensions, default=3,2.857,2.727,2.609,2.5.')
 parser.add_argument('--gsd', default='(pow|han).*', help='Regular expression used to determine which GSD models to fit.')
@@ -69,8 +71,9 @@ unc = spectrum[args.columns[2]]
 files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 mwave = models[0]['wave_f']
-conv = u.Unit('W/(cm2 um)').to(args.unit, 1.0, u.spectral_density(mwave * u.um))
-mfluxd = [m['flux'] * conv for m in models]  # now in units of args.unit
+delta = args.delta * const.au.to('cm').value
+conv = delta**-2 * u.Unit('W/(cm2 um)').to(args.unit, 1.0, u.spectral_density(mwave * u.um))
+mfluxd = [m['flux'] * conv for m in models]  # unitless but scaled to units of args.unit
 
 # Pick out rh
 i = np.array([np.isclose(args.rh, rh) for rh in models[0]['r_h']])
@@ -130,8 +133,8 @@ material_classes = (
     dust.AmorphousPyroxene50,
     dust.AmorphousOlivine50,
     dust.AmorphousCarbon,
-    dust.HotOrthoEnstatite,
-    dust.HotForsterite95
+    dust.HotForsterite95,
+    dust.HotOrthoEnstatite
 )
 tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
                    parameter_names=('GSD', 'D'), material_names=material_names)
@@ -141,6 +144,8 @@ meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
 meta['comet spectrum'] = args.spectrum
 meta['wavelength unit'] = 'um'
 meta['flux density unit'] = str(args.unit)
+meta['r_h (AU)'] = args.rh
+meta['Delta (AU)'] = args.delta
 tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 
 # Save fit_all results.
@@ -157,11 +162,17 @@ dof = len(wave) - len(material_names) - 1
 j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
 mfluxd_best = mfluxd[..., j, k]  # pick out best model fluxes
 f = Np[:, np.newaxis] * mfluxd_best  # scale model
-best_model = Table(names=('wave', ) + material_names, data=np.vstack((mwave[np.newaxis], f)).T)
+best_model = Table(names=('wave', 'total', ) + material_names, data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T)
 
 meta['rchisq'] = rchisq
 meta['dof'] = dof
-meta['Np'] = dict()
+meta['GSD'] = gsd_name
+if gsd_name.startswith('han'):
+    N, M = [float(x) for x in gsd_name.split()[1:]]
+    gsd = dust.HannerGSD(0.1, N, M)
+    meta['a_p'] = '{} um'.format(round(gsd.ap, 1))
+meta['D'] = D 
+meta['Np'] = OrderedDict()
 Np = np.empty(len(material_names))
 for j, m in enumerate(material_names):
     meta['Np'][m] = tab[i][m]
@@ -200,5 +211,6 @@ if args.n > 0:
     mcall.table().write(filenames['mcall'],
                         format='ascii.fixed_width_two_line')
     
+    mcbest.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
     mcbest.write(filenames['mcbest'],
                  format='ascii.fixed_width_two_line')
