@@ -156,7 +156,6 @@ i = tab['rchisq'].argmin()
 Np = np.array([tab[i][m] for m in material_names])
 D = tab[i]['D']
 gsd_name = tab[i]['GSD']
-print(gsd_name)
 rchisq = tab[i]['rchisq']
 dof = len(wave) - len(material_names) - 1
 
@@ -167,7 +166,11 @@ best_model = Table(names=('wave', 'total', ) + material_names, data=np.vstack((m
 
 meta['rchisq'] = rchisq
 meta['dof'] = dof
-meta['GSD'] = gsd_name 
+meta['GSD'] = gsd_name
+if gsd_name.startswith('han'):
+    N, M = [float(x) for x in gsd_name.split()[1:]]
+    gsd = dust.HannerGSD(0.1, N, M)
+    meta['a_p'] = '{} um'.format(round(gsd.ap, 1))
 meta['D'] = D 
 meta['Np'] = OrderedDict()
 Np = np.empty(len(material_names))
