@@ -90,9 +90,15 @@ class ModelResults:
                 # Sum of the mass of crystalline silicates to the total silicate mass
                 ratios[j][1] = csils
                 # Silicate to carbon ratio
-                ratios[j][2] = (asils + csils) / acars
+                if acars != 0:
+                    ratios[j][2] = (asils + csils) / acars
+                else:
+                    ratios[j][2] = 0.
                 # Mass fraction of crystalline silicates to total silicate mass
-                ratios[j][3] = asils / csils
+                if csils != 0:
+                    ratios[j][3] = asils / csils
+                else:
+                    ratios[j][3] = 0.
         else:
             ratios = np.zeros(4)
             asils = 0.
@@ -111,9 +117,15 @@ class ModelResults:
             # Sum of the mass of crystalline silicates to the total silicate mass
             ratios[1] = csils
             # Silicate to carbon ratio
-            ratios[2] = (asils + csils) / acars
+            if acars != 0:
+                ratios[2] = (asils + csils) / acars
+            else:
+                ratios[2] = 0.
             # Mass fraction of crystalline silicates to total silicate mass
-            ratios[3] = asils / csils
+            if csils != 0:
+                ratios[3] = asils / csils
+            else:
+                ratios[3] = 0.
         
         # Name of the Nps
         names = ['s{}'.format(i) for i in range(Nmat)]
