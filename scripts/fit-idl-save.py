@@ -2,6 +2,7 @@
 import os
 import re
 import sys
+import time
 import argparse
 from collections import OrderedDict
 import numpy as np
@@ -141,7 +142,9 @@ tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
 
 meta = OrderedDict()
 meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
+meta['run on'] = time.strftime("%a %b %d %Y %I:%M:%S")
 meta['comet spectrum'] = args.spectrum
+meta['materials included'] = material_names
 meta['wavelength unit'] = 'um'
 meta['flux density unit'] = str(args.unit)
 meta['r_h (AU)'] = args.rh
@@ -211,6 +214,13 @@ if args.n > 0:
     mcall.table().write(filenames['mcall'],
                         format='ascii.fixed_width_two_line')
     
+    meta['s#, +s#, -s#'] = 'Nps - number of grains at the peak grain size and range for each material'
+    meta['Mtot, +Mtot, -Mtot'] = 'total mass of the submicron sized grains in grams'
+    meta['f#, +f#, -f#'] = 'relative mass of the submicron sized grains and range for each material'
+    meta['r0, +r0, -r0'] = 'sum of the mass of amorphous silicates normalized by the total mass'
+    meta['r1, +r1, -r1'] = 'sum of the mass of crystalline silicates normalized by the total mass'
+    meta['r2, +r2, -r2'] = 'silicate to carbon ratio'
+    meta['r3, +r3, -r3'] = 'mass fraction of crystalline silicates to total silicate mass'
     mcbest.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
     mcbest.write(filenames['mcbest'],
                  format='ascii.fixed_width_two_line')
