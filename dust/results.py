@@ -95,8 +95,8 @@ class ModelResults:
                 else:
                     ratios[j][2] = 0.
                 # Mass fraction of crystalline silicates to total silicate mass
-                if csils != 0:
-                    ratios[j][3] = asils / csils
+                if (asils + csils) != 0:
+                    ratios[j][3] = csils / (asils + csils)
                 else:
                     ratios[j][3] = 0.
         else:
@@ -122,11 +122,11 @@ class ModelResults:
             else:
                 ratios[2] = 0.
             # Mass fraction of crystalline silicates to total silicate mass
-            if csils != 0:
-                ratios[3] = asils / csils
+            if (asils + csils) != 0:
+                ratios[3] = csils / (asils + csils)
             else:
                 ratios[3] = 0.
-        
+            
         # Name of the Nps
         names = ['s{}'.format(i) for i in range(Nmat)]
         # Total mass
@@ -150,7 +150,7 @@ class ModelResults:
         # Define the table with headers and data
         tab = Table(names=names, data=data)
         
-        # I don't know where this meta data goes.  Not seen in output.
+        # DEH: I don't know where this meta data goes.  Not seen in output.
         for i, m in enumerate(self.materials):
             tab.meta['material {}'.format(i)] = m.name
 
