@@ -215,6 +215,9 @@ class Material:
       The name of the material.
     rho0 : float
       The bulk material density in g/cm3.
+    mattype : string
+      Indicates type of material: 'asil' = amorphous silicate, 'acar' = amorphous carbon
+      'csil' = crystalline silicate
     porosity : PorosityModel, optional
       A description of the porosity as a function of size.
     gsd : GrainSizeDistribution, optional
@@ -222,9 +225,10 @@ class Material:
     
     """
 
-    def __init__(self, name, rho0, porosity=Solid(), gsd=PowerLaw(1.,0)):
+    def __init__(self, name, rho0, mtype, porosity=Solid(), gsd=PowerLaw(1.,0)):
         self.name = name
         self.rho0 = rho0
+        self.mtype = mtype
         self.porosity = porosity
         self.gsd = gsd
 
@@ -279,7 +283,7 @@ class AmorphousOlivine50(Material):
     """
 
     def __init__(self, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Amorphous olivine 50/50', 3.3,
+        Material.__init__(self, 'Amorphous olivine 50/50', 3.3, 'asil',
                           porosity=porosity, gsd=gsd)
 
 class AmorphousPyroxene50(Material):
@@ -293,7 +297,7 @@ class AmorphousPyroxene50(Material):
     """
 
     def __init__(self, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Amorphous pyroxene 50/50', 3.3,
+        Material.__init__(self, 'Amorphous pyroxene 50/50', 3.3, 'asil',
                           porosity=porosity, gsd=gsd)
 
 class AmorphousCarbon(Material):
@@ -307,17 +311,17 @@ class AmorphousCarbon(Material):
     """
 
     def __init__(self, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Amorphous carbon', 2.5,
+        Material.__init__(self, 'Amorphous carbon', 2.5, 'acar',
                           porosity=porosity, gsd=gsd)
 
 class HotForsterite95(Material):
     """Mg-rich olivine (Fo95), hot crystal model."""
 
     def __init__(self, gsd=PowerLaw(1.,0,)):
-        Material.__init__(self, 'Hot forsterite 95', 3.3, porosity=Solid(), gsd=gsd)
+        Material.__init__(self, 'Hot forsterite 95', 3.3, 'csil', porosity=Solid(), gsd=gsd)
 
 class HotOrthoEnstatite(Material):
     """Mg-rich ortho enstantite, hot crystal model."""
 
     def __init__(self, gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Hot ortho-enstatite', 3.3, porosity=Solid(), gsd=gsd)
+        Material.__init__(self, 'Hot ortho-enstatite', 3.3, 'csil', porosity=Solid(), gsd=gsd)

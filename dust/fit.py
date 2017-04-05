@@ -223,6 +223,7 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
     mcfits = ModelResults(best.materials, scales, rchisq=chi2 / best.dof,
                           dof=best.dof)
 
+
     # get confidence limits
     summary = summarize_mcfit(mcfits, best=best, cl=cl, ar=ar)
 
@@ -329,6 +330,7 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
     tab = results.table(ar=ar)
     if best is not None:
         best_tab = best.table(ar=ar)
+
 
     names = []
     dtype = []

@@ -196,7 +196,7 @@ for i in range(len(material_names)):
         # use fractal porosity
         materials.append(material_classes[i](porosity=porosity, gsd=gsd))
     else:
-        # crystals are solidn and do not accept porosity models
+        # crystals are solid and do not accept porosity models
         materials.append(material_classes[i](gsd=gsd))
 
 # Save best model results.

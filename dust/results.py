@@ -68,20 +68,77 @@ class ModelResults:
         else:
             m = m.sum(-1)
 
+        # Compute the mass fraction of each material
         f = self.mass_fraction(ar)
 
-        names = ['s{}'.format(i) for i in range(Nmat)]
-        names += ['Mtot']
-        names += ['f{}'.format(i) for i in range(Nmat)]
-        d = [self.scales, self._dimension_check(m), f]
+        # Calculate the desired ratios
+        if len(f) > len(self.materials):
+            ratios = np.zeros((len(f),4))
+            for j in range(len(f)):
+                asils = 0.
+                acars = 0.
+                csils = 0.
+                for i in range(len(self.materials)):
+                    if self.materials[i].mtype == 'asil':
+                        asils += f[j][i]
+                    if self.materials[i].mtype == 'csil':
+                        csils += f[j][i]
+                    if self.materials[i].mtype == 'acar':
+                        acars += f[j][i]
+                # Sum of the mass of amorphous silicates to the total silicate mass
+                ratios[j][0] = asils
+                # Sum of the mass of crystalline silicates to the total silicate mass
+                ratios[j][1] = csils
+                # Silicate to carbon ratio
+                ratios[j][2] = (asils + csils) / acars
+                # Mass fraction of crystalline silicates to total silicate mass
+                ratios[j][3] = asils / csils
+        else:
+            ratios = np.zeros(4)
+            asils = 0.
+            acars = 0.
+            csils = 0.
+            for i in range(len(self.materials)):
+                if self.materials[i].mtype == 'asil':
+                    asils += f[i]
+                if self.materials[i].mtype == 'csil':
+                    csils += f[i]
+                if self.materials[i].mtype == 'acar':
+                    acars += f[i]
 
+            # Sum of the mass of amorphous silicates to the total silicate mass
+            ratios[0] = asils
+            # Sum of the mass of crystalline silicates to the total silicate mass
+            ratios[1] = csils
+            # Silicate to carbon ratio
+            ratios[2] = (asils + csils) / acars
+            # Mass fraction of crystalline silicates to total silicate mass
+            ratios[3] = asils / csils
+        
+        # Name of the Nps
+        names = ['s{}'.format(i) for i in range(Nmat)]
+        # Total mass
+        names += ['Mtot']
+        # Name of the mass fractions
+        names += ['f{}'.format(i) for i in range(Nmat)]
+        # Name of calculated ratios
+        names += ['r{}'.format(i) for i in range(4)]
+        
+        # The row with Nps, total mass, and mass fractions
+        d = [self.scales, self._dimension_check(m), f, ratios]
+        
+        # Append on the rchisq to the row of data
         if self.rchisq is not None:
             names.append('rchisq')
             d.append(self.rchisq)
 
+        # Make a single row of data.
         data = np.hstack(d)
 
+        # Define the table with headers and data
         tab = Table(names=names, data=data)
+        
+        # I don't know where this meta data goes.  Not seen in output.
         for i, m in enumerate(self.materials):
             tab.meta['material {}'.format(i)] = m.name
 
