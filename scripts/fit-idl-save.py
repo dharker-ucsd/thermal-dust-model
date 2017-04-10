@@ -35,11 +35,11 @@ parser = argparse.ArgumentParser(description='Fit a comet spectrum with a model 
 parser.add_argument('spectrum', help='Name of the comet spectrum.  Must be a readable astropy Table, with wavelength in units of μm, and spectral data in units of flux density.')
 parser.add_argument('rh', type=float, help='Use the model evaulated at this heliocentric distance in units of au.')
 parser.add_argument('out_prefix', help='File name prefix for best-fit results.')
-parser.add_argument('--delta', default=1., type=float, help='The geocentric distance of the comet in AU.')
 parser.add_argument('-n', type=int, default=10000, help='Number of Monte Carlo simulations to run for final uncertainty estimates.  Set to 0 to skip MC fitting.')
 parser.add_argument('-D', type=list_of(float), default=[3, 2.857, 2.727, 2.609, 2.5], help='Fit these specific fractal dimensions, default=3,2.857,2.727,2.609,2.5.')
 parser.add_argument('--gsd', default='(pow|han).*', help='Regular expression used to determine which GSD models to fit.')
 parser.add_argument('--unit', default='W/(m2 um)', type=u.Unit, help='Flux density units of the comet spectrum, default="W/(m2 um)".')
+parser.add_argument('--delta', default=1., type=float, help='The geocentric distance of the comet in AU.')
 parser.add_argument('--columns', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite previous output, if it exists.')
 
@@ -69,7 +69,7 @@ fluxd = spectrum[args.columns[1]]
 unc = spectrum[args.columns[2]]
 
 # Open IDL save files with idl.readsav, preserve this order:
-files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
+files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl'] #, 'fens.idl']
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 mwave = models[0]['wave_f']
 delta = args.delta * const.au.to('cm').value
@@ -117,8 +117,8 @@ assert any(i), 'Error: None of D={} in {}'.format(args.D, Ds)
 for j in range(3):  # amorphous dust
     mfluxd[j] = mfluxd[j][:, :, i]
 
-for j in range(3, 5):  # crystalline dust
-    mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2)
+for j in range(3, len(files)):   # crystalline dust
+    mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2) 
 
 # Pick out dirtiness, this is not user configurable
 mfluxd = [m[..., -1] for m in mfluxd]
@@ -129,13 +129,13 @@ mfluxd = np.array(mfluxd)
 
 # Pass models to fit to dust.fit_all.
 # mfluxd will be an array with axis order: material, wavelength, D, gsd
-material_names = ('ap', 'ao', 'ac', 'co', 'cp')
+material_names = ('ap', 'ao', 'ac', 'co') #, 'cp')
 material_classes = (
     dust.AmorphousPyroxene50,
     dust.AmorphousOlivine50,
     dust.AmorphousCarbon,
-    dust.HotForsterite95,
-    dust.HotOrthoEnstatite
+    dust.HotForsterite95 #,
+#    dust.HotOrthoEnstatite
 )
 tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
                    parameter_names=('GSD', 'D'), material_names=material_names)
@@ -167,7 +167,7 @@ mfluxd_best = mfluxd[..., j, k]  # pick out best model fluxes
 f = Np[:, np.newaxis] * mfluxd_best  # scale model
 best_model = Table(names=('wave', 'total', ) + material_names, data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T)
 
-meta['rchisq'] = rchisq
+meta['rchisq'] = rchisq / dof
 meta['dof'] = dof
 meta['GSD'] = gsd_name
 if gsd_name.startswith('han'):

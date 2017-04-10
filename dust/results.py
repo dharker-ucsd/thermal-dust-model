@@ -141,7 +141,7 @@ class ModelResults:
         
         # Append on the rchisq to the row of data
         if self.rchisq is not None:
-            names.append('rchisq')
+            names.append('chisq')
             d.append(self.rchisq)
 
         # Make a single row of data.
