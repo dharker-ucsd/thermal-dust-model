@@ -155,11 +155,11 @@ tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 tab.write(filenames['all'], format='ascii.fixed_width_two_line')
 
 # Determine best model, save it.
-i = tab['rchisq'].argmin()
+i = tab['chisq'].argmin()
 Np = np.array([tab[i][m] for m in material_names])
 D = tab[i]['D']
 gsd_name = tab[i]['GSD']
-rchisq = tab[i]['rchisq']
+rchisq = tab[i]['chisq']
 dof = len(wave) - len(material_names) - 1
 
 j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
