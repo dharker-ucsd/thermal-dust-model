@@ -2,6 +2,7 @@
 import os
 import re
 import sys
+import time
 import argparse
 from collections import OrderedDict
 import numpy as np
@@ -141,7 +142,9 @@ tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
 
 meta = OrderedDict()
 meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
+meta['run on'] = time.strftime("%a %b %d %Y %I:%M:%S")
 meta['comet spectrum'] = args.spectrum
+meta['materials included'] = material_names
 meta['wavelength unit'] = 'um'
 meta['flux density unit'] = str(args.unit)
 meta['r_h (AU)'] = args.rh
@@ -179,7 +182,7 @@ for j, m in enumerate(material_names):
     Np[j] = tab[i][m]
 best_model.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 
-best_model.write(filenames['bestmodel'], format='ascii.fixed_width_two_line')
+best_model.write(filenames['bestmodel'], format='ascii.ecsv')
 
 # Save direct and derived parameters.
 materials = []
@@ -196,21 +199,28 @@ for i in range(len(material_names)):
         # use fractal porosity
         materials.append(material_classes[i](porosity=porosity, gsd=gsd))
     else:
-        # crystals are solidn and do not accept porosity models
+        # crystals are solid and do not accept porosity models
         materials.append(material_classes[i](gsd=gsd))
 
 # Save best model results.
 best_results = dust.ModelResults(materials, Np, rchisq, dof)
 best_results.table().write(filenames['best'],
-                           format='ascii.fixed_width_two_line')
+                           format='ascii.ecsv')
 
 # If args.n > 0, pass to dust.fit_uncertainties.  Save all mcfits.
 if args.n > 0:
     mcall, mcbest = dust.fit_uncertainties(wave, fluxd, unc, mwave,
                                            mfluxd_best, best_results)
     mcall.table().write(filenames['mcall'],
-                        format='ascii.fixed_width_two_line')
+                        format='ascii.ecsv')
     
+    meta['s#, +s#, -s#'] = 'Nps - number of grains at the peak grain size and range for each material'
+    meta['Mtot, +Mtot, -Mtot'] = 'total mass of the submicron sized grains in grams'
+    meta['f#, +f#, -f#'] = 'relative mass of the submicron sized grains and range for each material'
+    meta['r0, +r0, -r0'] = 'sum of the mass of amorphous silicates normalized by the total mass'
+    meta['r1, +r1, -r1'] = 'sum of the mass of crystalline silicates normalized by the total mass'
+    meta['r2, +r2, -r2'] = 'silicate to carbon ratio'
+    meta['r3, +r3, -r3'] = 'mass fraction of crystalline silicates to total silicate mass'
     mcbest.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
     mcbest.write(filenames['mcbest'],
-                 format='ascii.fixed_width_two_line')
+                 format='ascii.ecsv')
