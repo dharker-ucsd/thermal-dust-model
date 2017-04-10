@@ -1,0 +1,124 @@
+#!/usr/bin/python3
+import matplotlib
+import matplotlib.pyplot as plt
+from astropy.io import ascii
+import numpy as np
+import argparse
+
+def list_of(type):
+    """Return a fuction that will split a string into a list of `type` objects.
+
+    The string is assumed to be comma-separated.
+
+    Parameters
+    ----------
+    type : object
+      The fuction will return a list of `type` objects.
+
+    Returns
+    -------
+    f : function
+      The parsing function.
+
+    """
+    return lambda s: [type(item) for item in s.split(',')]
+
+
+parser = argparse.ArgumentParser(description='Plot a comet spectrum with the model fit.')
+parser.add_argument('spectrum', help='Name of the comet spectrum.  Must be a readable astropy Table, with wavelength in units of μm, and spectral data in units of flux density.')
+parser.add_argument('model', help='Name of the file which has the model spectra.')
+parser.add_argument('--colspec', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
+parser.add_argument('--xlim', type=list_of(float), default='3.0, 25.0', help='Limits of the x-axis.  Default = "3.0 - 25.0"')
+parser.add_argument('--ylim', type=list_of(float), default='1e-19, 1e-15', help='Limits of the y-axis.  Default = "1e-19 - 1e-15"')
+parser.add_argument('--lfl', action='store_true', help='Plot lambda*F_lambda')
+parser.add_argument('--xlog', action='store_true', help='Set log x-axis')
+parser.add_argument('--ylog', action='store_true', help='Set log y-axis')
+
+args = parser.parse_args()
+
+# Set up comet spectrum
+spectrum = ascii.read(args.spectrum)
+wave = spectrum[args.colspec[0]]
+fluxd = spectrum[args.colspec[1]]
+unc = spectrum[args.colspec[2]]
+
+if args.lfl:
+    fluxd = fluxd * wave # put in lambda*F_lambda space if flagged
+    unc = unc * wave
+
+# Set up model spectra
+model = ascii.read(args.model) # read the model file
+header = ascii.read(model.meta['comments'], delimiter='=', format='no_header', names=['key', 'val']) # get the header information
+cols = model.colnames # pull out the column names
+wmodel = np.array(model[cols[0]]) # pull out the wavelength column
+tmodel = np.array(model[cols[1]]) # pull out the total model
+mcols = np.zeros((len(cols)-2,len(model))) # set up array for the individual materials
+for i, c in enumerate(cols[0:len(cols)-2]):
+    mcols[i,:] = model[cols[i+2]] # pull out the individual materials
+
+if args.lfl:    # put into lambda*F_lambda space if desired
+    tmodel = tmodel * wmodel
+    mcols = mcols * wmodel
+
+# We have all the data, so now start the plotting
+
+fig = plt.figure(num=1, figsize=[7,7]) # initialize frame and size
+ax = fig.add_subplot(111) # full single frame
+
+hfont = {'fontname':'Helvetica'} # set font to Helvetica
+
+# thicken the border
+ax.spines['top'].set_linewidth(2)
+ax.spines['right'].set_linewidth(2)
+ax.spines['bottom'].set_linewidth(2)
+ax.spines['left'].set_linewidth(2)
+
+
+plt.minorticks_on() # turn on minor ticks
+plt.rc('font', weight='bold') # bold the tick labels
+plt.rc('xtick', labelsize=14) # set the x-axis tick label size
+plt.rc('ytick', labelsize=14) # set the y-axis tick label size
+plt.tick_params(length=10) # set the length of the major ticks
+plt.tick_params(direction='in',which='minor',length=5) # set the direction and length of the minor ticks
+plt.tick_params(direction='in',which='both',width=2) # set the width of all ticks
+plt.ticklabel_format(axis='both', fontweight='bold') # bold the tock labels
+
+plt.xlim(args.xlim) # set x-axis limits
+plt.ylim(args.ylim) # set y-axis limits
+
+# Define the axis labels
+plt.xlabel('Wavelength ($\mu$m)', fontsize=14, fontweight='bold', **hfont) # set x-axis label
+if (header[header['key'] == 'flux density unit']['val'] == 'W / (cm2 um)') and (args.lfl):
+    ylabel_name = '$\lambda$F$_{\lambda}$ (W cm$^{-2}$)'
+if (header[header['key'] == 'flux density unit']['val'] == 'W / (cm2 um)') and (not args.lfl):
+    ylabel_name = 'F$_{\lambda}$ (W cm$^{-2}$ $\mu$m$^{-1}$)'
+if (header[header['key'] == 'flux density unit']['val'] == 'W / (m2 um)') and (args.lfl):
+    ylabel_name = '$\lambda$F$_{\lambda}$ (W m$^{-2}$)'
+if (header[header['key'] == 'flux density unit']['val'] == 'W / (m2 um)') and (not args.lfl):
+    ylabel_name = 'F$_{\lambda}$ (W m$^{-2}$ $\mu$m$^{-1}$)'
+if header[header['key'] == 'flux density unit']['val'] == 'Jy':
+    ylabel_name = 'F(Jy)'
+     
+plt.ylabel(ylabel_name, fontsize=14, fontweight='bold', **hfont)  # set y-axis label 
+
+
+if args.xlog:
+    ax.set_xscale("log", nonposx='clip')
+if args.ylog:
+    ax.set_yscale("log", nonposx='clip')
+
+
+ax.plot(wave,fluxd,'ko',markersize=4) # plot data
+ax.plot(wave,fluxd,'w.',markersize=2) # plot data
+ax.errorbar(wave,fluxd,yerr=unc,ecolor='k',fmt='none', capsize=2) # plot error bars
+
+colors = ['blue', 'cyan', 'darkorange', 'green', 'magenta', 'black'] # define some colors
+
+for i, c in enumerate(cols[0:len(cols)-2]):
+    ax.plot(wmodel, mcols[i,:], color=colors[i]) # plot the materials
+
+ax.plot(wmodel, tmodel, color='r') # plot the total model
+
+plt.show()
+
+
