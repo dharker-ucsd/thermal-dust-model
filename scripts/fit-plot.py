@@ -1,10 +1,10 @@
 #!/usr/bin/python3
-import matplotlib
-import matplotlib.pyplot as plt
-from astropy.io import ascii
-import astropy.units as u
-import numpy as np
 import argparse
+import matplotlib
+import numpy as np
+import astropy.units as u
+from astropy.io import ascii
+import matplotlib.pyplot as plt
 
 def list_of(type):
     """Return a fuction that will split a string into a list of `type` objects.
@@ -98,7 +98,7 @@ model = ascii.read(args.model) # read the model file
 header = ascii.read(model.meta['comments'], delimiter='=', format='no_header', names=['key', 'val']) # get the header information
 munit_in = str(header[header['key'] == 'flux density unit']['val']).split('\n')[2] # units in the model file
 col_names = model.colnames # pull out the column names
-materials = col_names[2:len(col_names)]
+materials = col_names[2:len(col_names)] # get the name of the materials (probably redundant)
 wmodel = np.array(model[col_names[0]]) # pull out the wavelength column
 tmodel = np.array(model[col_names[1]])  # pull out the total model
 mcols = np.zeros((len(col_names)-2,len(model))) # set up array for the individual materials
@@ -139,7 +139,6 @@ ax.spines['right'].set_linewidth(2)
 ax.spines['bottom'].set_linewidth(2)
 ax.spines['left'].set_linewidth(2)
 
-
 plt.minorticks_on() # turn on minor ticks
 plt.rc('font', weight='bold') # bold the tick labels
 plt.rc('xtick', labelsize=14) # set the x-axis tick label size
@@ -176,7 +175,7 @@ if args.ylog:
 # Plot the data.
 ax.plot(wave,fluxd,'ko',markersize=4) # plot data
 ax.plot(wave,fluxd,'w.',markersize=2) # plot data
-#ax.errorbar(wave,fluxd,yerr=unc,ecolor='k',fmt='none', capsize=2) # plot error bars
+ax.errorbar(wave,fluxd,yerr=unc,ecolor='k',fmt='none', capsize=2) # plot error bars
 
 # Set up the colors for the materials in a dictionary
 colors = {'ap': 'blue', 'ao': 'cyan', 'ac': 'darkorange', 'co': 'green', 'cp': 'magenta', 'other': 'black'}
