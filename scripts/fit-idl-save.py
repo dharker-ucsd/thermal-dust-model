@@ -135,13 +135,21 @@ for j in range(len(Ds)):
 Ds = Ds[i]
 assert any(i), 'Error: None of D={} in {}'.format(args.D, Ds)
 
-# This is hard coded to assume the first three materials are amorphous and
-# the last ones are crystalline.
+#### This is hard coded to assume the first three materials are amorphous and
+#### the last ones are crystalline.  CHANGED BELOW
 for j in range(3):  # amorphous dust
     mfluxd[j] = mfluxd[j][:, :, i]
 
 for j in range(3, len(files)):   # crystalline dust
     mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2) 
+
+# Given the nature of the IDL save files, amorphous and crystalline materials
+# are treated differently.  But now the order should be irrelevant.
+for j in range(len(files)):  
+    if material_classes[0]().mtype.startswith('a'):
+        mfluxd[j] = mfluxd[j][:, :, i]  # amorphous dust
+    else:
+        mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2) # crystalline dust
 
 # Pick out dirtiness, this is not user configurable
 mfluxd = [m[..., -1] for m in mfluxd]
