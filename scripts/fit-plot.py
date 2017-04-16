@@ -91,20 +91,19 @@ else:
         unc = unc * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
         units = 'Jy'
 
-print(units)
-
 #------------------------------------------------
 # Set up model spectra
 #------------------------------------------------
 model = ascii.read(args.model) # read the model file
 header = ascii.read(model.meta['comments'], delimiter='=', format='no_header', names=['key', 'val']) # get the header information
 munit_in = str(header[header['key'] == 'flux density unit']['val']).split('\n')[2] # units in the model file
-cols = model.colnames # pull out the column names
-wmodel = np.array(model[cols[0]]) # pull out the wavelength column
-tmodel = np.array(model[cols[1]])  # pull out the total model
-mcols = np.zeros((len(cols)-2,len(model))) # set up array for the individual materials
-for i, c in enumerate(cols[0:len(cols)-2]):
-    mcols[i,:] = model[cols[i+2]] # pull out the individual materials
+col_names = model.colnames # pull out the column names
+materials = col_names[2:len(col_names)]
+wmodel = np.array(model[col_names[0]]) # pull out the wavelength column
+tmodel = np.array(model[col_names[1]])  # pull out the total model
+mcols = np.zeros((len(col_names)-2,len(model))) # set up array for the individual materials
+for i, c in enumerate(col_names[0:len(col_names)-2]):
+    mcols[i,:] = model[col_names[i+2]] # pull out the individual materials
 
 # Convert units:
 if units == 'W/(cm2 um)':
@@ -168,23 +167,31 @@ if units == 'Jy':
 
 plt.ylabel(ylabel_name, fontsize=14, fontweight='bold', **hfont)  # set y-axis label 
 
-
+# Set axis to log if flagged.
 if args.xlog:
     ax.set_xscale("log", nonposx='clip')
 if args.ylog:
     ax.set_yscale("log", nonposx='clip')
 
-
+# Plot the data.
 ax.plot(wave,fluxd,'ko',markersize=4) # plot data
 ax.plot(wave,fluxd,'w.',markersize=2) # plot data
 #ax.errorbar(wave,fluxd,yerr=unc,ecolor='k',fmt='none', capsize=2) # plot error bars
 
-colors = ['blue', 'cyan', 'darkorange', 'green', 'magenta', 'black'] # define some colors
+# Set up the colors for the materials in a dictionary
+colors = {'ap': 'blue', 'ao': 'cyan', 'ac': 'darkorange', 'co': 'green', 'cp': 'magenta', 'other': 'black'}
 
-for i, c in enumerate(cols[0:len(cols)-2]):
-    ax.plot(wmodel, mcols[i,:], color=colors[i]) # plot the materials
+# Plot the materials
+for i, mats in enumerate(materials):
+    try:
+        colors[mats]
+    except KeyError:
+        ax.plot(wmodel, mcols[i,:], color=colors['other'])
+    else:
+        ax.plot(wmodel, mcols[i,:], color=colors[mats]) 
 
-ax.plot(wmodel, tmodel, color='r') # plot the total model
+# Plot the total model in red
+ax.plot(wmodel, tmodel, color='red') 
 
 plt.show()
 
