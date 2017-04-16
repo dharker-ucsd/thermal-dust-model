@@ -39,6 +39,61 @@ parser.add_argument('--colspec', type=list_of(str), default='wave,fluxd,unc', he
 args = parser.parse_args()
 
 #------------------------------------------------
+# Set up comet spectrum
+#------------------------------------------------
+spectrum = ascii.read(args.spectrum)
+wave = spectrum[args.colspec[0]]
+fluxd = spectrum[args.colspec[1]] #* u.Unit(unit_in)
+unc = spectrum[args.colspec[2]] #* u.Unit(unit_in)
+header = ascii.read(spectrum.meta['comments'], delimiter='=', format='no_header', names=['key', 'val'])
+sunit_in = str(header[header['key'] == 'flux density unit']['val']).split('\n')[2] # units in the spectrum file
+
+if args.unit != '':
+    if args.unit == 'W/(cm2 um)':
+        if args.lfl:
+            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
+            unc = unc * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
+        else:
+            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
+            unc = unc * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
+        units = 'W/(cm2 um)'
+    if args.unit == 'W/(m2 um)':
+        if args.lfl:
+            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
+            unc = unc * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
+        else:
+            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
+            unc = unc * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
+        units = 'W/(m2 um)'
+    if args.unit == 'Jy':
+        fluxd = fluxd * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
+        unc = unc * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
+        units = 'Jy'
+else:
+    if sunit_in == 'W / (cm2 um)':
+        if args.lfl:
+            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
+            unc = unc * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
+        else:
+            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
+            unc = unc * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
+        units = 'W/(cm2 um)'
+    if sunit_in == 'W / (m2 um)':
+        if args.lfl:
+            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
+            unc = unc * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
+        else:
+            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
+            unc = unc * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
+        units = 'W/(m2 um)'
+    if sunit_in == 'Jy':
+        fluxd = fluxd * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
+        unc = unc * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
+        units = 'Jy'
+
+print(units)
+
+#------------------------------------------------
 # Set up model spectra
 #------------------------------------------------
 model = ascii.read(args.model) # read the model file
@@ -50,97 +105,26 @@ tmodel = np.array(model[cols[1]])  # pull out the total model
 mcols = np.zeros((len(cols)-2,len(model))) # set up array for the individual materials
 for i, c in enumerate(cols[0:len(cols)-2]):
     mcols[i,:] = model[cols[i+2]] # pull out the individual materials
-mcols = mcols #* u.Unit(unit_in)
 
+# Convert units:
+if units == 'W/(cm2 um)':
+    if args.lfl:
+        tmodel = tmodel * u.Unit(munit_in).to('W/(cm2)', 1.0, u.spectral_density(wmodel * u.um))
+        mcols = mcols * u.Unit(munit_in).to('W/(cm2)', 1.0, u.spectral_density(wmodel * u.um))
+    else:
+        tmodel = tmodel * u.Unit(munit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wmodel * u.um))
+        mcols = mcols * u.Unit(munit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wmodel * u.um))
+if units == 'W/(m2 um)':
+    if args.lfl:
+        tmodel = tmodel * u.Unit(munit_in).to('W/(m2)', 1.0, u.spectral_density(wmodel * u.um))
+        mcols = mcols * u.Unit(munit_in).to('W/(m2)', 1.0, u.spectral_density(wmodel * u.um))
+    else:
+        tmodel = tmodel * u.Unit(munit_in).to('W/(m2 um)', 1.0, u.spectral_density(wmodel * u.um))
+        mcols = mcols * u.Unit(munit_in).to('W/(m2 um)', 1.0, u.spectral_density(wmodel * u.um))
+if units == 'Jy':
+    tmodel = tmodel * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
+    mcols = mcols * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
 
-
-# Convert units if needed:
-if args.unit != '':
-    if args.unit == 'W/(cm2 um)':
-        if args.lfl:
-            tmodel = tmodel * u.Unit(munit_in).to('W/(cm2)', 1.0, u.spectral_density(wmodel * u.um))
-            mcols = mcols * u.Unit(munit_in).to('W/(cm2)', 1.0, u.spectral_density(wmodel * u.um))
-        else:
-            tmodel = tmodel * u.Unit(munit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wmodel * u.um))
-            mcols = mcols * u.Unit(munit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wmodel * u.um))
-    if args.unit == 'W/(m2 um)':
-        if args.lfl:
-            tmodel = tmodel * u.Unit(munit_in).to('W/(m2)', 1.0, u.spectral_density(wmodel * u.um))
-            mcols = mcols * u.Unit(munit_in).to('W/(m2)', 1.0, u.spectral_density(wmodel * u.um))
-        else:
-            tmodel = tmodel * u.Unit(munit_in).to('W/(m2 um)', 1.0, u.spectral_density(wmodel * u.um))
-            mcols = mcols * u.Unit(munit_in).to('W/(m2 um)', 1.0, u.spectral_density(wmodel * u.um))
-    if args.unit == 'Jy':
-        tmodel = tmodel * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
-        mcols = mcols * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
-else:
-    if munit_in == 'W / (cm2 um)':
-        if args.lfl:
-            tmodel = tmodel * u.Unit(munit_in).to('W/(cm2)', 1.0, u.spectral_density(wmodel * u.um))
-            mcols = mcols * u.Unit(munit_in).to('W/(cm2)', 1.0, u.spectral_density(wmodel * u.um))
-        else:
-            tmodel = tmodel * u.Unit(munit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wmodel * u.um))
-            mcols = mcols * u.Unit(munit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wmodel * u.um))
-    if munit_in == 'W / (m2 um)':
-        if args.lfl:
-            tmodel = tmodel * u.Unit(munit_in).to('W/(m2)', 1.0, u.spectral_density(wmodel * u.um))
-            mcols = mcols * u.Unit(munit_in).to('W/(m2)', 1.0, u.spectral_density(wmodel * u.um))
-        else:
-            tmodel = tmodel * u.Unit(munit_in).to('W/(m2 um)', 1.0, u.spectral_density(wmodel * u.um))
-            mcols = mcols * u.Unit(munit_in).to('W/(m2 um)', 1.0, u.spectral_density(wmodel * u.um))
-    if munit_in == 'Jy':
-        tmodel = tmodel * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
-        mcols = mcols * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
-
-
-#------------------------------------------------
-# Set up comet spectrum
-#------------------------------------------------
-spectrum = ascii.read(args.spectrum)
-wave = spectrum[args.colspec[0]]
-fluxd = spectrum[args.colspec[1]] #* u.Unit(unit_in)
-unc = spectrum[args.colspec[2]] #* u.Unit(unit_in)
-header = ascii.read(model.meta['comments'], delimiter='=', format='no_header', names=['key', 'val'])
-sunit_in = str(header[header['key'] == 'flux density unit']['val']).split('\n')[2] # units in the spectrum file
-
-if args.unit != '':
-    if args.unit == 'W/(cm2 um)':
-        if args.lfl:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
-        else:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
-    if args.unit == 'W/(m2 um)':
-        if args.lfl:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
-        else:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
-    if args.unit == 'Jy':
-        fluxd = fluxd * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
-        unc = unc * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
-    units = args.unit
-else:
-    if sunit_in == 'W / (cm2 um)':
-        if args.lfl:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
-        else:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
-    if sunit_in == 'W / (m2 um)':
-        if args.lfl:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
-        else:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
-    if sunit_in == 'Jy':
-        fluxd = fluxd * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
-        unc = unc * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
-    units = sunit_in
 
 #------------------------------------------------
 # We have all the data, so now start the plotting
@@ -171,28 +155,17 @@ plt.ylim(args.ylim) # set y-axis limits
 
 # Define the axis labels
 plt.xlabel('Wavelength ($\mu$m)', fontsize=14, fontweight='bold', **hfont) # set x-axis label
-if ((units == 'W / (cm2 um)') or (units == 'W/(cm2 um)')) and (args.lfl):
+if (units == 'W/(cm2 um)') and (args.lfl):
     ylabel_name = '$\lambda$F$_{\lambda}$ (W cm$^{-2}$)'
-if ((units == 'W / (cm2 um)') or (units == 'W/(cm2 um)')) and (not args.lfl):
+if (units == 'W/(cm2 um)') and (not args.lfl):
     ylabel_name = 'F$_{\lambda}$ (W cm$^{-2}$ $\mu$m$^{-1}$)'
-if ((units == 'W / (m2 um)') or (units == 'W/(m2 um)')) and (args.lfl):
+if (units == 'W/(m2 um)') and (args.lfl):
     ylabel_name = '$\lambda$F$_{\lambda}$ (W m$^{-2}$)'
-if ((units == 'W / (m2 um)') or (units == 'W/(m2 um)')) and (not args.lfl):
+if (units == 'W/(m2 um)') and (not args.lfl):
     ylabel_name = 'F$_{\lambda}$ (W m$^{-2}$ $\mu$m$^{-1}$)'
 if units == 'Jy':
     ylabel_name = 'F(Jy)'
 
-#if (header[header['key'] == 'flux density unit']['val'] == 'W / (cm2 um)') and (args.lfl):
-#    ylabel_name = '$\lambda$F$_{\lambda}$ (W cm$^{-2}$)'
-#if (header[header['key'] == 'flux density unit']['val'] == 'W / (cm2 um)') and (not args.lfl):
-#    ylabel_name = 'F$_{\lambda}$ (W cm$^{-2}$ $\mu$m$^{-1}$)'
-#if (header[header['key'] == 'flux density unit']['val'] == 'W / (m2 um)') and (args.lfl):
-#    ylabel_name = '$\lambda$F$_{\lambda}$ (W m$^{-2}$)'
-#if (header[header['key'] == 'flux density unit']['val'] == 'W / (m2 um)') and (not args.lfl):
-#    ylabel_name = 'F$_{\lambda}$ (W m$^{-2}$ $\mu$m$^{-1}$)'
-#if header[header['key'] == 'flux density unit']['val'] == 'Jy':
-#    ylabel_name = 'F(Jy)'
-     
 plt.ylabel(ylabel_name, fontsize=14, fontweight='bold', **hfont)  # set y-axis label 
 
 
