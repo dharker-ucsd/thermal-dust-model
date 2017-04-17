@@ -34,6 +34,7 @@ parser.add_argument('--ylog', action='store_true', help='Set log y-axis')
 parser.add_argument('--xlim', type=list_of(float), default='3.0, 25.0', help='Limits of the x-axis.  Default = "3.0 - 25.0"')
 parser.add_argument('--ylim', type=list_of(float), default='1e-19, 1e-15', help='Limits of the y-axis.  Default = "1e-19 - 1e-15"')
 parser.add_argument('--unit', default='', type=u.Unit, help='Flux density units on which to plot the comet spectrum and the model. Default are the units read from model file.')
+parser.add_argument('--dash', action='store_true', help='Plot the unconstrained materials with a dashed line.  Need the relevant MCBEST file with same prefix as the BESTMODEL file in the same directory.')
 parser.add_argument('--colspec', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
 
 args = parser.parse_args()
@@ -124,6 +125,27 @@ if units == 'Jy':
     tmodel = tmodel * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
     mcols = mcols * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
 
+#------------------------------------------------
+# Are the materials constrained?  Draw a dashed line if it is not.
+#------------------------------------------------
+
+if args.dash:
+    try:
+        np_table = ascii.read('{}.MCBEST.txt'.format(args.model.split('.BESTMODEL.txt')[0]))
+    except FileNotFoundError:
+        print('Sorry, MCBEST file not found. Drawing all lines as solid.')
+        line_dash = ["solid" for x in range(len(materials))]
+    else:
+        line_dash = []
+        for i in range(len(materials)):
+            num = float(np_table['s{}'.format(i)]) 
+            mnum = float(-np_table['-s{}'.format(i)]) 
+            if num + mnum == 0:
+                line_dash += ['dashed']
+            else:
+                line_dash += ['solid']
+else:
+    line_dash = ["solid" for x in range(len(materials))]
 
 #------------------------------------------------
 # We have all the data, so now start the plotting
@@ -185,9 +207,9 @@ for i, mats in enumerate(materials):
     try:
         colors[mats]
     except KeyError:
-        ax.plot(wmodel, mcols[i,:], color=colors['other'])
+        ax.plot(wmodel, mcols[i,:], color=colors['other'], linestyle=line_dash[i])
     else:
-        ax.plot(wmodel, mcols[i,:], color=colors[mats]) 
+        ax.plot(wmodel, mcols[i,:], color=colors[mats], linestyle=line_dash[i]) 
 
 # Plot the total model in red
 ax.plot(wmodel, tmodel, color='red') 
