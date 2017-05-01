@@ -153,7 +153,7 @@ else:
 fig = plt.figure(num=1, figsize=[7,7]) # initialize frame and size
 ax = fig.add_subplot(111) # full single frame
 
-hfont = {'fontname':'Helvetica'} # set font to Helvetica
+#hfont = {'fontname':'Helvetica'} # set font to Helvetica
 
 # thicken the border
 ax.spines['top'].set_linewidth(2)
@@ -174,7 +174,7 @@ plt.xlim(args.xlim) # set x-axis limits
 plt.ylim(args.ylim) # set y-axis limits
 
 # Define the axis labels
-plt.xlabel('Wavelength ($\mu$m)', fontsize=14, fontweight='bold', **hfont) # set x-axis label
+plt.xlabel('Wavelength ($\mu$m)', fontsize=14, fontweight='bold') #, **hfont) # set x-axis label
 if (units == 'W/(cm2 um)') and (args.lfl):
     ylabel_name = '$\lambda$F$_{\lambda}$ (W cm$^{-2}$)'
 if (units == 'W/(cm2 um)') and (not args.lfl):
@@ -186,7 +186,7 @@ if (units == 'W/(m2 um)') and (not args.lfl):
 if units == 'Jy':
     ylabel_name = 'F(Jy)'
 
-plt.ylabel(ylabel_name, fontsize=14, fontweight='bold', **hfont)  # set y-axis label 
+plt.ylabel(ylabel_name, fontsize=14, fontweight='bold') #, **hfont)  # set y-axis label 
 
 # Set axis to log if flagged.
 if args.xlog:
