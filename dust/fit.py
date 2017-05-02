@@ -61,7 +61,7 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
     if parameter_names is None:
         parameter_names = ['p{}'.format(i) for i in range(len(parameters))]
 
-    names = parameter_names + material_names + ('rchisq',)
+    names = parameter_names + material_names + ('chisq',)
     dtype = []
     for p in parameters:
         if type(p) == str:
@@ -143,7 +143,7 @@ def fit_one(fluxd, unc, mfluxd, method='nnls', guess=None, **kwargs):
         b = fluxd / unc
         
         best, r = nnls(A, b)
-        chi2 = np.sum(r)
+        chi2 = np.sum(r**2)
     else:
         kwargs['tol'] = kwargs.get('tol', 1e-5)  # default tolerance
         

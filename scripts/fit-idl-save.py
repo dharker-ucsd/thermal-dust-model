@@ -35,13 +35,14 @@ parser = argparse.ArgumentParser(description='Fit a comet spectrum with a model 
 parser.add_argument('spectrum', help='Name of the comet spectrum.  Must be a readable astropy Table, with wavelength in units of μm, and spectral data in units of flux density.')
 parser.add_argument('rh', type=float, help='Use the model evaulated at this heliocentric distance in units of au.')
 parser.add_argument('out_prefix', help='File name prefix for best-fit results.')
-parser.add_argument('--delta', default=1., type=float, help='The geocentric distance of the comet in AU.')
 parser.add_argument('-n', type=int, default=10000, help='Number of Monte Carlo simulations to run for final uncertainty estimates.  Set to 0 to skip MC fitting.')
 parser.add_argument('-D', type=list_of(float), default=[3, 2.857, 2.727, 2.609, 2.5], help='Fit these specific fractal dimensions, default=3,2.857,2.727,2.609,2.5.')
 parser.add_argument('--gsd', default='(pow|han).*', help='Regular expression used to determine which GSD models to fit.')
 parser.add_argument('--unit', default='W/(m2 um)', type=u.Unit, help='Flux density units of the comet spectrum, default="W/(m2 um)".')
+parser.add_argument('--delta', default=1., type=float, help='The geocentric distance of the comet in AU.')
 parser.add_argument('--columns', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite previous output, if it exists.')
+parser.add_argument('--material_names', type=list_of(str), default=['ap','ao','ac','co','cp'], help='Names of the materials to include in model fits, default="ap","ao","ac","co","cp"')
 
 args = parser.parse_args()
 
@@ -69,7 +70,27 @@ fluxd = spectrum[args.columns[1]]
 unc = spectrum[args.columns[2]]
 
 # Open IDL save files with idl.readsav, preserve this order:
-files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
+#files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
+files = []
+material_classes = ()
+args.material_names = tuple(args.material_names)
+for mat in args.material_names:
+    if mat == 'ap':
+        files += ['fpyr50.idl']
+        material_classes += (dust.AmorphousPyroxene50,)
+    if mat == 'ao':
+        files += ['fol50.idl']
+        material_classes += (dust.AmorphousOlivine50,)
+    if mat == 'ac':
+        files += ['fcar_e.idl']
+        material_classes += (dust.AmorphousCarbon,)
+    if mat == 'co':
+        files += ['fsfor.idl']
+        material_classes += (dust.HotForsterite95,)
+    if mat == 'cp':
+        files += ['fens.idl']
+        material_classes += (dust.HotOrthoEnstatite,)
+
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 mwave = models[0]['wave_f']
 delta = args.delta * const.au.to('cm').value
@@ -112,13 +133,22 @@ for j in range(len(Ds)):
             i[j] = True
             break
 Ds = Ds[i]
-
 assert any(i), 'Error: None of D={} in {}'.format(args.D, Ds)
-for j in range(3):  # amorphous dust
-    mfluxd[j] = mfluxd[j][:, :, i]
 
-for j in range(3, 5):  # crystalline dust
-    mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2)
+#### This is hard coded to assume the first three materials are amorphous and
+#### the last ones are crystalline.  CHANGED BELOW
+#for j in range(3):  # amorphous dust
+#    mfluxd[j] = mfluxd[j][:, :, i]
+#for j in range(3, len(files)):   # crystalline dust
+#    mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2) 
+
+# Given the nature of the IDL save files, amorphous and crystalline materials
+# are treated differently.  But now the order should be irrelevant.
+for j in range(len(files)):
+    if material_classes[j]().mtype.startswith('a'):
+        mfluxd[j] = mfluxd[j][:, :, i]  # amorphous dust
+    else:
+        mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2) # crystalline dust
 
 # Pick out dirtiness, this is not user configurable
 mfluxd = [m[..., -1] for m in mfluxd]
@@ -129,22 +159,24 @@ mfluxd = np.array(mfluxd)
 
 # Pass models to fit to dust.fit_all.
 # mfluxd will be an array with axis order: material, wavelength, D, gsd
-material_names = ('ap', 'ao', 'ac', 'co', 'cp')
-material_classes = (
-    dust.AmorphousPyroxene50,
-    dust.AmorphousOlivine50,
-    dust.AmorphousCarbon,
-    dust.HotForsterite95,
-    dust.HotOrthoEnstatite
-)
+
+#material_names = ('ap', 'ao', 'ac', 'co', 'cp')
+#material_classes = (
+#    dust.AmorphousPyroxene50,
+#    dust.AmorphousOlivine50,
+#    dust.AmorphousCarbon,
+#    dust.HotForsterite95,
+#    dust.HotOrthoEnstatite
+#)
+
 tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
-                   parameter_names=('GSD', 'D'), material_names=material_names)
+                   parameter_names=('GSD', 'D'), material_names=args.material_names)
 
 meta = OrderedDict()
 meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
 meta['run on'] = time.strftime("%a %b %d %Y %I:%M:%S")
 meta['comet spectrum'] = args.spectrum
-meta['materials included'] = material_names
+meta['materials included'] = args.material_names
 meta['wavelength unit'] = 'um'
 meta['flux density unit'] = str(args.unit)
 meta['r_h (AU)'] = args.rh
@@ -155,19 +187,19 @@ tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 tab.write(filenames['all'], format='ascii.fixed_width_two_line')
 
 # Determine best model, save it.
-i = tab['rchisq'].argmin()
-Np = np.array([tab[i][m] for m in material_names])
+i = tab['chisq'].argmin()
+Np = np.array([tab[i][m] for m in args.material_names])
 D = tab[i]['D']
 gsd_name = tab[i]['GSD']
-rchisq = tab[i]['rchisq']
-dof = len(wave) - len(material_names) - 1
+rchisq = tab[i]['chisq']
+dof = len(wave) - len(args.material_names) - 1
 
 j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
 mfluxd_best = mfluxd[..., j, k]  # pick out best model fluxes
 f = Np[:, np.newaxis] * mfluxd_best  # scale model
-best_model = Table(names=('wave', 'total', ) + material_names, data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T)
+best_model = Table(names=('wave', 'total', ) + args.material_names, data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T)
 
-meta['rchisq'] = rchisq
+meta['rchisq'] = rchisq / dof
 meta['dof'] = dof
 meta['GSD'] = gsd_name
 if gsd_name.startswith('han'):
@@ -176,8 +208,8 @@ if gsd_name.startswith('han'):
     meta['a_p'] = '{} um'.format(round(gsd.ap, 1))
 meta['D'] = D 
 meta['Np'] = OrderedDict()
-Np = np.empty(len(material_names))
-for j, m in enumerate(material_names):
+Np = np.empty(len(args.material_names))
+for j, m in enumerate(args.material_names):
     meta['Np'][m] = tab[i][m]
     Np[j] = tab[i][m]
 best_model.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
@@ -194,8 +226,8 @@ elif gsd_name.startswith('pow'):
     N = float(gsd_name.split()[1])
     gsd = dust.PowerLaw(0.1, N)
 
-for i in range(len(material_names)):
-    if material_names[i] in ['ap', 'ao', 'ac']:
+for i in range(len(args.material_names)):
+    if args.material_names[i] in ['ap', 'ao', 'ac']:
         # use fractal porosity
         materials.append(material_classes[i](porosity=porosity, gsd=gsd))
     else:
