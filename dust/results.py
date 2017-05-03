@@ -20,10 +20,13 @@ class ModelResults:
       The reduced chi-squared statistic for each set of scales.
     dof : int, optional
       The number of degrees of freedom.
+    material_names : list of strings, optional
+      Material names to use for table column header.
 
     """
 
-    def __init__(self, materials, scales, rchisq=None, dof=None):
+    def __init__(self, materials, scales, rchisq=None, dof=None,
+                 material_names=None):
         from .materials import Material
 
         assert all([isinstance(m, Material) for m in materials])
@@ -38,6 +41,10 @@ class ModelResults:
 
         self.rchisq = self._dimension_check(rchisq)
         self.dof = dof
+        if material_names is None:
+            self.material_names = range(len(materials))
+        else:
+            self.material_names = material_names
 
     def _dimension_check(self, a):
         if a is None:
@@ -129,11 +136,11 @@ class ModelResults:
                 ratios[3] = 0.
             
         # Name of the Nps
-        names = ['s{}'.format(i) for i in range(Nmat)]
+        names = ['s_{}'.format(x) for x in self.material_names]
         # Total mass
-        names += ['Mtot']
+        names += ['M_total']
         # Name of the mass fractions
-        names += ['f{}'.format(i) for i in range(Nmat)]
+        names += ['f_{}'.format(i) for i in range(Nmat)]
         # Name of calculated ratios
         names += ['r{}'.format(i) for i in range(4)]
         

@@ -187,9 +187,11 @@ tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
 tab.meta = meta
 tab.write(filenames['all'], format='ascii.ecsv')
 
+scale_names = ['s_{}'.format(m) for m in args.material_names]
+
 # Determine best model, save it.
 i = tab['chisq'].argmin()
-Np = np.array([tab[i][m] for m in args.material_names])
+Np = np.array([tab[i][m] for m in scale_names])
 D = tab[i]['D']
 gsd_name = tab[i]['GSD']
 rchisq = tab[i]['chisq']
@@ -209,11 +211,12 @@ if gsd_name.startswith('han'):
 meta['D'] = float(D)
 meta['Np'] = OrderedDict()
 Np = np.empty(len(args.material_names))
-for j, m in enumerate(args.material_names):
+for j, m in enumerate(scale_names):
     meta['Np'][m] = float(tab[i][m])
     Np[j] = float(tab[i][m])
 
-best_model = Table(names=('wave', 'total', ) + args.material_names,
+fluxd_names = ['F_{}'.format(x) for x in args.material_names]
+best_model = Table(names=['wave', 'F_total'] + fluxd_names,
                    data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T,
                    meta=meta)
 best_model.write(filenames['bestmodel'], format='ascii.ecsv')

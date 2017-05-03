@@ -58,10 +58,12 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
     if material_names is None:
         material_names = ['mat{}'.format(i) for i in range(mfluxd.shape[0])]
 
+    scale_names = ['s_{}'.format(x) for x in material_names]
+
     if parameter_names is None:
         parameter_names = ['p{}'.format(i) for i in range(len(parameters))]
 
-    names = parameter_names + material_names + ('chisq',)
+    names = list(parameter_names) + scale_names + ['chisq']
     dtype = []
     for p in parameters:
         if type(p) == str:
