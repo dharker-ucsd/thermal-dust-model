@@ -59,7 +59,7 @@ for f in filenames.values():
         if args.overwrite:
             os.unlink(f)
         else:
-            raise AssertionError('{} exists, remove or use --overwrite')
+            raise AssertionError('{} exists, remove or use --overwrite'.format(f))
 
 assert args.unit.is_equivalent('W/(cm2 um)', u.spectral_density(1 * u.um)), 'Comet spectrum must be in units of flux density.'
 
@@ -169,9 +169,7 @@ mfluxd = np.array(mfluxd)
 #    dust.HotOrthoEnstatite
 #)
 
-tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
-                   parameter_names=('GSD', 'D'), material_names=args.material_names)
-
+# meta data for all tables
 meta = OrderedDict()
 meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
 meta['run on'] = time.strftime("%a %b %d %Y %I:%M:%S")
@@ -181,10 +179,13 @@ meta['wavelength unit'] = 'um'
 meta['flux density unit'] = str(args.unit)
 meta['r_h (AU)'] = args.rh
 meta['Delta (AU)'] = args.delta
-tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 
 # Save fit_all results.
-tab.write(filenames['all'], format='ascii.fixed_width_two_line')
+tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
+                   parameter_names=('GSD', 'D'),
+                   material_names=args.material_names)
+tab.meta = meta
+tab.write(filenames['all'], format='ascii.ecsv')
 
 # Determine best model, save it.
 i = tab['chisq'].argmin()
@@ -197,23 +198,24 @@ dof = len(wave) - len(args.material_names) - 1
 j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
 mfluxd_best = mfluxd[..., j, k]  # pick out best model fluxes
 f = Np[:, np.newaxis] * mfluxd_best  # scale model
-best_model = Table(names=('wave', 'total', ) + args.material_names, data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T)
 
-meta['rchisq'] = rchisq / dof
+meta['rchisq'] = float(rchisq / dof)
 meta['dof'] = dof
-meta['GSD'] = gsd_name
+meta['GSD'] = str(gsd_name)
 if gsd_name.startswith('han'):
     N, M = [float(x) for x in gsd_name.split()[1:]]
     gsd = dust.HannerGSD(0.1, N, M)
     meta['a_p'] = '{} um'.format(round(gsd.ap, 1))
-meta['D'] = D 
+meta['D'] = float(D)
 meta['Np'] = OrderedDict()
 Np = np.empty(len(args.material_names))
 for j, m in enumerate(args.material_names):
-    meta['Np'][m] = tab[i][m]
-    Np[j] = tab[i][m]
-best_model.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
+    meta['Np'][m] = float(tab[i][m])
+    Np[j] = float(tab[i][m])
 
+best_model = Table(names=('wave', 'total', ) + args.material_names,
+                   data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T,
+                   meta=meta)
 best_model.write(filenames['bestmodel'], format='ascii.ecsv')
 
 # Save direct and derived parameters.
@@ -236,15 +238,13 @@ for i in range(len(args.material_names)):
 
 # Save best model results.
 best_results = dust.ModelResults(materials, Np, rchisq, dof)
-best_results.table().write(filenames['best'],
-                           format='ascii.ecsv')
+best_results.table().write(filenames['best'], format='ascii.ecsv')
 
 # If args.n > 0, pass to dust.fit_uncertainties.  Save all mcfits.
 if args.n > 0:
     mcall, mcbest = dust.fit_uncertainties(wave, fluxd, unc, mwave,
                                            mfluxd_best, best_results)
-    mcall.table().write(filenames['mcall'],
-                        format='ascii.ecsv')
+    mcall.table().write(filenames['mcall'], format='ascii.ecsv')
     
     meta['s#, +s#, -s#'] = 'Nps - number of grains at the peak grain size and range for each material'
     meta['Mtot, +Mtot, -Mtot'] = 'total mass of the submicron sized grains in grams'
@@ -253,6 +253,6 @@ if args.n > 0:
     meta['r1, +r1, -r1'] = 'sum of the mass of crystalline silicates normalized by the total mass'
     meta['r2, +r2, -r2'] = 'silicate to carbon ratio'
     meta['r3, +r3, -r3'] = 'mass fraction of crystalline silicates to total silicate mass'
-    mcbest.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
-    mcbest.write(filenames['mcbest'],
-                 format='ascii.ecsv')
+
+    mcbest.meta = meta
+    mcbest.write(filenames['mcbest'], format='ascii.ecsv')

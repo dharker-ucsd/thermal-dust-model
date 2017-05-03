@@ -58,6 +58,7 @@ class ModelResults:
     def table(self, ar=(0.1, 1)):
         """Results summarized as a table."""
 
+        from collections import OrderedDict
         from astropy.table import Table
 
         Nmat = len(self.materials)
@@ -147,18 +148,18 @@ class ModelResults:
         # Make a single row of data.
         data = np.hstack(d)
 
-        # Define the table with headers and data
-        tab = Table(names=names, data=data)
-        
-        # DEH: I don't know where this meta data goes.  Not seen in output.
+        meta = OrderedDict()
         for i, m in enumerate(self.materials):
-            tab.meta['material {}'.format(i)] = m.name
+            meta['material {}'.format(i)] = m.name
 
         if self.dof is not None:
-            tab.meta['dof'] = self.dof
+            meta['dof'] = self.dof
 
-        tab.meta['Radius range for masses'] = ar
+        meta['Radius range for masses'] = ar
 
+        # Define the table with headers and data
+        tab = Table(names=names, data=data, meta=meta)
+        
         return tab
 
     def total_mass(self, ar):
