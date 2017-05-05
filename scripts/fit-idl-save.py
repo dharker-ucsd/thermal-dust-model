@@ -75,19 +75,19 @@ materials = ()
 for mat in args.materials:
     if mat == 'ap':
         files += ['fpyr50.idl']
-        materials += (dust.AmorphousPyroxene50,)
+        materials += (dust.amorphous_pyroxene50,)
     elif mat == 'ao':
         files += ['fol50.idl']
-        materials += (dust.AmorphousOlivine50,)
+        materials += (dust.amorphous_olivine50,)
     elif mat == 'ac':
         files += ['fcar_e.idl']
-        materials += (dust.AmorphousCarbon,)
+        materials += (dust.amorphous_carbon,)
     elif mat == 'co':
         files += ['fsfor.idl']
-        materials += (dust.HotForsterite95,)
+        materials += (dust.hot_forsterite95,)
     elif mat == 'cp':
         files += ['fens.idl']
-        materials += (dust.HotOrthoEnstatite,)
+        materials += (dust.hot_ortho_enstatite,)
     else:
         raise ValueError('Requested material is not recognized: {}'.format(mat))
 

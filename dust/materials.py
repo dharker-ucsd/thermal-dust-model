@@ -10,11 +10,11 @@ __all__ = [
     'PowerLaw',
     'MaterialType',
     'Material',
-    'AmorphousOlivine50',
-    'AmorphousPyroxene50',
-    'AmorphousCarbon',
-    'HotForsterite95',
-    'HotOrthoEnstatite',
+    'amorphous_olivine50',
+    'amorphous_pyroxene50',
+    'amorphous_carbon',
+    'hot_forsterite95',
+    'hot_ortho_enstatite',
     'Grains',
 ]
 
@@ -240,23 +240,23 @@ class Material:
         assert isinstance(mtype, (list, tuple))
         self.mtype = tuple() if mtype is None else tuple(mtype)
 
-AmorphousOlivine50 = Material(
+amorphous_olivine50 = Material(
     'Amorphous olivine Mg/Fe 50/50', 'ao50', 3.3,
     (MaterialType.AMORPHOUS, MaterialType.SILICATE, MaterialType.DUST))
 
-AmorphousPyroxene50 = Material(
+amorphous_pyroxene50 = Material(
     'Amorphous pyroxene Mg/Fe 50/50', 'ap50', 3.3,
     (MaterialType.AMORPHOUS, MaterialType.SILICATE, MaterialType.DUST))
 
-AmorphousCarbon = Material(
+amorphous_carbon = Material(
     'Amorphous carbon', 'ac', 2.5,
     (MaterialType.AMORPHOUS, MaterialType.CARBONACEOUS, MaterialType.DUST))
 
-HotForsterite95 = Material(
+hot_forsterite95 = Material(
     'Hot forsterite 95', 'co', 3.3,
     (MaterialType.CRYSTALLINE, MaterialType.SILICATE, MaterialType.DUST))
 
-HotOrthoEnstatite = Material(
+hot_ortho_enstatite = Material(
     'Hot ortho-enstatite', 'cp', 3.3,
     (MaterialType.CRYSTALLINE, MaterialType.SILICATE, MaterialType.DUST))
 
