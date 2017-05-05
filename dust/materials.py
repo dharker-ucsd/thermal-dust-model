@@ -213,6 +213,8 @@ class Material:
     ----------
     name : string
       The name of the material.
+    abbrev : string
+      An abbreviation of the name, e.g., for table headings.
     rho0 : float
       The bulk material density in g/cm3.
     mattype : string
@@ -225,8 +227,9 @@ class Material:
     
     """
 
-    def __init__(self, name, rho0, mtype, porosity=Solid(), gsd=PowerLaw(1.,0)):
+    def __init__(self, name, abbrev, rho0, mtype, porosity=Solid(), gsd=PowerLaw(1.,0)):
         self.name = name
+        self.abbrev = abbrev
         self.rho0 = rho0
         self.mtype = mtype
         self.porosity = porosity
@@ -277,13 +280,15 @@ class AmorphousOlivine50(Material):
 
     Parameters
     ----------
+    abbrev : string
+      An abbreviation of the name, e.g., for table headings.
     porosity : PorosityModel, optional
       A description of the porosity as a function of size.
 
     """
 
-    def __init__(self, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Amorphous olivine 50/50', 3.3, 'asil',
+    def __init__(self, abbrev, porosity=Solid(), gsd=PowerLaw(1.,0)):
+        Material.__init__(self, 'Amorphous olivine 50/50', abbrev, 3.3, 'asil',
                           porosity=porosity, gsd=gsd)
 
 class AmorphousPyroxene50(Material):
@@ -291,13 +296,15 @@ class AmorphousPyroxene50(Material):
 
     Parameters
     ----------
+    abbrev : string
+      An abbreviation of the name, e.g., for table headings.
     porosity : PorosityModel, optional
       A description of the porosity as a function of size.
 
     """
 
-    def __init__(self, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Amorphous pyroxene 50/50', 3.3, 'asil',
+    def __init__(self, abbrev, porosity=Solid(), gsd=PowerLaw(1.,0)):
+        Material.__init__(self, 'Amorphous pyroxene 50/50', abbrev, 3.3, 'asil',
                           porosity=porosity, gsd=gsd)
 
 class AmorphousCarbon(Material):
@@ -305,23 +312,41 @@ class AmorphousCarbon(Material):
 
     Parameters
     ----------
+    abbrev : string
+      An abbreviation of the name, e.g., for table headings.
     porosity : PorosityModel, optional
       A description of the porosity as a function of size.
 
     """
 
-    def __init__(self, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Amorphous carbon', 2.5, 'acar',
+    def __init__(self, abbrev, porosity=Solid(), gsd=PowerLaw(1.,0)):
+        Material.__init__(self, 'Amorphous carbon', abbrev, 2.5, 'acar',
                           porosity=porosity, gsd=gsd)
 
 class HotForsterite95(Material):
-    """Mg-rich olivine (Fo95), hot crystal model."""
+    """Mg-rich olivine (Fo95), hot crystal model.
 
-    def __init__(self, gsd=PowerLaw(1.,0,)):
-        Material.__init__(self, 'Hot forsterite 95', 3.3, 'csil', porosity=Solid(), gsd=gsd)
+    Parameters
+    ----------
+    abbrev : string
+      An abbreviation of the name, e.g., for table headings.
+
+    """
+
+    def __init__(self, abbrev, gsd=PowerLaw(1.,0,)):
+        Material.__init__(self, 'Hot forsterite 95', abbrev, 3.3, 'csil',
+                          porosity=Solid(), gsd=gsd)
 
 class HotOrthoEnstatite(Material):
-    """Mg-rich ortho enstantite, hot crystal model."""
+    """Mg-rich ortho enstantite, hot crystal model.
 
-    def __init__(self, gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Hot ortho-enstatite', 3.3, 'csil', porosity=Solid(), gsd=gsd)
+    Parameters
+    ----------
+    abbrev : string
+      An abbreviation of the name, e.g., for table headings.
+
+    """
+
+    def __init__(self, abbrev, gsd=PowerLaw(1.,0)):
+        Material.__init__(self, 'Hot ortho-enstatite', abbrev, 3.3, 'csil',
+                          porosity=Solid(), gsd=gsd)

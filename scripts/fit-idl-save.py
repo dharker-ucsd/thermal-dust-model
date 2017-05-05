@@ -63,6 +63,8 @@ for f in filenames.values():
 
 assert args.unit.is_equivalent('W/(cm2 um)', u.spectral_density(1 * u.um)), 'Comet spectrum must be in units of flux density.'
 
+assert len(args.material_names) > 0 and all([m in ["ap", "ao", "ac", "co", "cp"] for m in args.material_names]), 'Material names must be one or more of: ap, ao, ac, co, cp."
+
 # Set up comet spectrum
 spectrum = ascii.read(args.spectrum)
 wave = spectrum[args.columns[0]]
@@ -145,7 +147,7 @@ assert any(i), 'Error: None of D={} in {}'.format(args.D, Ds)
 # Given the nature of the IDL save files, amorphous and crystalline materials
 # are treated differently.  But now the order should be irrelevant.
 for j in range(len(files)):
-    if material_classes[j]().mtype.startswith('a'):
+    if args.material_names[j] in ['ac', 'ap', 'ao']:
         mfluxd[j] = mfluxd[j][:, :, i]  # amorphous dust
     else:
         mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2) # crystalline dust
@@ -231,13 +233,13 @@ elif gsd_name.startswith('pow'):
     N = float(gsd_name.split()[1])
     gsd = dust.PowerLaw(0.1, N)
 
-for i in range(len(args.material_names)):
-    if args.material_names[i] in ['ap', 'ao', 'ac']:
+for mat, name in zip(material_classes, args.material_names):
+    if name in ['ap', 'ao', 'ac']:
         # use fractal porosity
-        materials.append(material_classes[i](porosity=porosity, gsd=gsd))
+        materials.append(mat(name, porosity=porosity, gsd=gsd))
     else:
         # crystals are solid and do not accept porosity models
-        materials.append(material_classes[i](gsd=gsd))
+        materials.append(mat(name, gsd=gsd))
 
 # Save best model results.
 best_results = dust.ModelResults(materials, Np, rchisq, dof)
