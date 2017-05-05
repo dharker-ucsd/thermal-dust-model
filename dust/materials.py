@@ -8,6 +8,7 @@ __all__ = [
     'ConstantPorosity',
     'HannerGSD',
     'PowerLaw',
+    'MaterialType',
     'Material',
     'AmorphousOlivine50',
     'AmorphousPyroxene50',
@@ -208,11 +209,12 @@ class PowerLaw(GrainSizeDistribution):
         return power_law(a, self.a0, self.powlaw)
 
 class MaterialType(Enum):
-    AMORPHOUS = 'am'
-    CRYSTALLINE = 'cry'
-    SILICATE = 'sil'
-    CARBONACEOUS = 'car'
-    ICE = 'ice'
+    AMORPHOUS = auto()
+    CRYSTALLINE = auto()
+    SILICATE = auto()
+    CARBONACEOUS = auto()
+    DUST = auto()
+    ICE = auto()
     
 class Material:
     """Bulk material properties.
@@ -239,23 +241,23 @@ class Material:
 
 AmorphousOlivine50 = Material(
     'Amorphous olivine Mg/Fe 50/50', 'ao50', 3.3,
-    (MaterialType.AMORPHOUS, MaterialType.SILICATE))
+    (MaterialType.AMORPHOUS, MaterialType.SILICATE, MaterialType.DUST))
 
 AmorphousPyroxene50 = Material(
     'Amorphous pyroxene Mg/Fe 50/50', 'ap50', 3.3,
-    (MaterialType.AMORPHOUS, MaterialType.SILICATE))
+    (MaterialType.AMORPHOUS, MaterialType.SILICATE, MaterialType.DUST))
 
 AmorphousCarbon = Material(
     'Amorphous carbon', 'ac', 2.5,
-    (MaterialType.AMORPHOUS, MaterialType.CARBONACEOUS))
+    (MaterialType.AMORPHOUS, MaterialType.CARBONACEOUS, MaterialType.DUST))
 
 HotForsterite95 = Material(
     'Hot forsterite 95', 'co', 3.3,
-    (MaterialType.CRYSTALLINE, MaterialType.SILICATE))
+    (MaterialType.CRYSTALLINE, MaterialType.SILICATE, MaterialType.DUST))
 
 HotOrthoEnstatite = Material(
     'Hot ortho-enstatite', 'cp', 3.3,
-    (MaterialType.CRYSTALLINE, MaterialType.SILICATE))
+    (MaterialType.CRYSTALLINE, MaterialType.SILICATE, MaterialType.DUST))
 
 class Dust:
     """A grain, or collection thereof.

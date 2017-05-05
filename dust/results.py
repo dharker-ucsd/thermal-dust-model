@@ -9,42 +9,35 @@ class ModelResults:
 
     Parameters
     ----------
-    materials : list of Material
-      List of materials used in the fit.
+    dust : list of Dust
+      List of dust collections used in the fit.
     scales : array-like
-      Grain size distribution scale factors for each material.  May be
-      an array with the same length as `materials`, or, to hold
+      Grain size distribution scale factors for each dust collection.
+      May be an array with the same length as `dust`, or, to hold
       multiple sets of scale factors, a 2-dimensional array with size
-      `N x len(materials)` (same as `fit.mcfit` results).
+      `N x len(dust)` (same as `fit.mcfit` results).
     rchisq : array-like, optional
       The reduced chi-squared statistic for each set of scales.
     dof : int, optional
       The number of degrees of freedom.
-    material_names : list of strings, optional
-      Material names to use for table column header.
 
     """
 
-    def __init__(self, materials, scales, rchisq=None, dof=None,
-                 material_names=None):
-        from .materials import Material
+    def __init__(self, dust, scales, rchisq=None, dof=None):
+        from .materials import Dust
 
-        assert all([isinstance(m, Material) for m in materials])
-        self.materials = materials
+        assert all([isinstance(d, Dust) for d in dust])
+        self.dust = dust
 
         self.scales = np.array(scales)
         assert self.scales.ndim in [1, 2], '`scales` must have 1 or 2 dimensions.'
         if self.scales.ndim == 1:
-            assert len(self.scales) == len(materials)
+            assert len(self.scales) == len(dust)
         else:
-            assert self.scales.shape[1] == len(materials)
+            assert self.scales.shape[1] == len(dust)
 
         self.rchisq = self._dimension_check(rchisq)
         self.dof = dof
-        if material_names is None:
-            self.material_names = range(len(materials))
-        else:
-            self.material_names = material_names
 
     def _dimension_check(self, a):
         if a is None:
@@ -62,140 +55,145 @@ class ModelResults:
 
         return a
 
-    def table(self, ar=(0.1, 1)):
-        """Results summarized as a table."""
+    def table(self, arange=(0.1, 1), ratios={}):
+        """Results summarized as a table.
+
+        Parameters
+        ----------
+        arange : two-element array
+          The grain size range in μm.
+        ratios : dictionary of lists
+          A dictionary of ratios to compute, or `None to use the
+          defaults.  The dictionary keys are used as column headings.
+          Each value is a two-element list of material types to use as
+          the numerator and denominator.  For example, to compute the
+          silicate to carbon ratio, use:
+
+            {'S/C': ([MaterialType.SILICATE], [MaterialType.CARBONACEOUS])}
+
+          For the crystalline silicate to total silicate ratio:
+
+            {'fcryst': ([MaterialType.CRYSTALLINE, MaterialType.SILICATE], [MaterialType.SILICATE])}
+
+          To compute the total amorphous silicate dust mass fraction:
+
+            {'AS': ([MaterialType.AMORPHOUS, MaterialType.SILICATE], [MaterialType.DUST])}
+
+          Use `MaterialType` to match any material:
+
+            {'fice': ([MaterialType.ICE, MaterialType])}
+
+        """
 
         from collections import OrderedDict
         from astropy.table import Table
+        from materials import MaterialType
 
-        Nmat = len(self.materials)
+        if ratios is None:
+            ratios = OrderedDict()
+            ratios['AS'] = ([MaterialType.AMORPHOUS, MaterialType.SILICATE], [MaterialType.DUST])
+            ratios['CS'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE], [MaterialType.SILICATE])
+            ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE], [MaterialType.DUST])
+            ratios['S/C'] = ([MaterialType.SILICATE], [MaterialType.CARBONACEOUS])
+
+        for r in ratios:
+            for types in r:
+                assert all([isinstance(t, MaterialType) for t in types]), '`ratios` must be a list of two-element arrays.  The elements are lists of the types to use in the numerator and denominator.'
+
+        Ndust = len(self.dust)
         Nsca = len(self.scales)
-        m = self.total_mass(ar)
+        m = self.total_mass(arange)
         if m.ndim == 1:
             m = m.sum()
         else:
             m = m.sum(-1)
 
-        # Compute the mass fraction of each material
-        f = self.mass_fraction(ar)
+        # Compute the mass fraction of each dust collection
+        f = self.mass_fraction(arange)
 
-        # Calculate the desired ratios
-        if len(f) > len(self.materials):
-            ratios = np.zeros((len(f),4))
-            for j in range(len(f)):
-                asils = 0.
-                acars = 0.
-                csils = 0.
-                for i in range(len(self.materials)):
-                    if self.materials[i].mtype == 'asil':
-                        asils += f[j][i]
-                    if self.materials[i].mtype == 'csil':
-                        csils += f[j][i]
-                    if self.materials[i].mtype == 'acar':
-                        acars += f[j][i]
-                # Sum of the mass of amorphous silicates to the total silicate mass
-                ratios[j][0] = asils
-                # Sum of the mass of crystalline silicates to the total silicate mass
-                ratios[j][1] = csils
-                # Silicate to carbon ratio
-                if acars != 0:
-                    ratios[j][2] = (asils + csils) / acars
-                else:
-                    ratios[j][2] = 0.
-                # Mass fraction of crystalline silicates to total silicate mass
-                if (asils + csils) != 0:
-                    ratios[j][3] = csils / (asils + csils)
-                else:
-                    ratios[j][3] = 0.
-        else:
-            ratios = np.zeros(4)
-            asils = 0.
-            acars = 0.
-            csils = 0.
-            for i in range(len(self.materials)):
-                if self.materials[i].mtype == 'asil':
-                    asils += f[i]
-                if self.materials[i].mtype == 'csil':
-                    csils += f[i]
-                if self.materials[i].mtype == 'acar':
-                    acars += f[i]
-
-            # Sum of the mass of amorphous silicates to the total silicate mass
-            ratios[0] = asils
-            # Sum of the mass of crystalline silicates to the total silicate mass
-            ratios[1] = csils
-            # Silicate to carbon ratio
-            if acars != 0:
-                ratios[2] = (asils + csils) / acars
-            else:
-                ratios[2] = 0.
-            # Mass fraction of crystalline silicates to total silicate mass
-            if (asils + csils) != 0:
-                ratios[3] = csils / (asils + csils)
-            else:
-                ratios[3] = 0.
-            
-        # Name of the Nps
-        names = ['s_{}'.format(x) for x in self.material_names]
+        # Name of the scale factors (Nps)
+        names = ['s({})'.format(d.material.abbrev) for d in self.dust]
         # Total mass
         names += ['M_total']
         # Name of the mass fractions
-        names += ['f_{}'.format(i) for i in range(Nmat)]
-        # Name of calculated ratios
-        names += ['r{}'.format(i) for i in range(4)]
-        
-        # The row with Nps, total mass, and mass fractions
-        d = [self.scales, self._dimension_check(m), f, ratios]
-        
-        # Append on the rchisq to the row of data
-        if self.rchisq is not None:
-            names.append('chisq')
-            d.append(self.rchisq)
+        names += ['f({})'.format(d.material.abbrev) for d in self.dust]
 
-        # Make a single row of data.
-        data = np.hstack(d)
+        # Nps, total mass, and mass fractions
+        data = [self.scales, self._dimension_check(m), f]
 
         meta = OrderedDict()
-        for i, m in enumerate(self.materials):
-            meta['material {}'.format(i)] = m.name
+        for d in enumerate(self.dust):
+            meta[d.material.abbrev] = d.material.name
 
         if self.dof is not None:
             meta['dof'] = self.dof
 
-        meta['Radius range for masses'] = ar
+        meta['Radius range for masses'] = arange
+
+        # Calculate and include ratios, if requested
+        if len(ratios) > 0:
+            ratio_names = []
+            if f.ndim == 1:
+                mass_ratios = np.zeros(len(ratios))
+            else:
+                mass_ratios = np.zeros((len(ratios), f.shape[0]))
+
+            for i, (name, equation) in enumerate(ratios.items()):
+                meta[name] = '{} / {}'.format(' '.join(equation[0]),
+                                              ' '.join(equation[1])).lower()
+                numerator = 0
+                denominator = 0
+                for j, d in enumerate(self.dust):
+                    if all([m in d.material.mtype for m in equation[0]]):
+                        numerator = numerator + f[j]
+                    if all([m in d.material.mtype for m in equation[1]]):
+                        denominator = denominator + f[j]
+
+                names.append(name)
+                mass_ratios[i] = numerator / denominator
+            
+            data.append(mass_ratios)
+        
+        # Last column is rchisq, if available
+        if self.rchisq is not None:
+            names.append('rchisq')
+            data.append(self.rchisq)
+
+        # Assmble all columns from the data sources
+        data = np.hstack(data)
 
         # Define the table with headers and data
         tab = Table(names=names, data=data, meta=meta)
         
         return tab
 
-    def total_mass(self, ar):
-        """Total mass of each material for the given size range.
+    def total_mass(self, arange):
+        """Total mass of each dust collection for the given size range.
 
         Parameters
         ----------
-        ar : array, optional
-          Consider grain radii from `ar[0]` to `ar[1]`.  Unit: μm.
+        arange : array, optional
+          Consider grain radii from `arange[0]` to `arange[1]`.  Unit: μm.
 
         """
 
         from .util import avint
 
-        assert np.iterable(ar)
-        assert len(ar) == 2
-        assert ar[0] <= ar[1]
+        assert np.iterable(arange)
+        assert len(arange) == 2
+        assert arange[0] <= arange[1]
 
-        if ar[0] == ar[1]:
+        if arange[0] == arange[1]:
             return m
 
-        m = np.zeros(len(self.materials))
+        m = np.zeros(len(self.dust))
         for i in range(len(m)):
-            m[i] = self.materials[i].total_mass(ar)
+            m[i] = self.dust[i].total_mass(arange)
 
         return self.scales * m
 
     def mass_fraction(self, ar):
-        """Mass fraction of each material for the given size range.
+        """Mass fraction of each dust collection for the given size range.
 
         Parameters
         ----------
