@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from enum import Enum, auto
+from enum import Enum
 import numpy as np
 
 __all__ = [
@@ -15,6 +15,7 @@ __all__ = [
     'AmorphousCarbon',
     'HotForsterite95',
     'HotOrthoEnstatite',
+    'Grains',
 ]
 
 class PorosityModel(ABC):
@@ -209,12 +210,12 @@ class PowerLaw(GrainSizeDistribution):
         return power_law(a, self.a0, self.powlaw)
 
 class MaterialType(Enum):
-    AMORPHOUS = auto()
-    CRYSTALLINE = auto()
-    SILICATE = auto()
-    CARBONACEOUS = auto()
-    DUST = auto()
-    ICE = auto()
+    AMORPHOUS = 'amorphous'
+    CRYSTALLINE = 'crystalline'
+    SILICATE = 'silicate'
+    CARBONACEOUS = 'carbonaceous'
+    DUST = 'dust'
+    ICE = 'ice'
     
 class Material:
     """Bulk material properties.
@@ -259,7 +260,7 @@ HotOrthoEnstatite = Material(
     'Hot ortho-enstatite', 'cp', 3.3,
     (MaterialType.CRYSTALLINE, MaterialType.SILICATE, MaterialType.DUST))
 
-class Dust:
+class Grains:
     """A grain, or collection thereof.
 
     Parameters
@@ -297,7 +298,7 @@ class Dust:
         """
         from .util import mass
 
-        rho = self.mateiral.rho0 * (1 - self.porosity(a))
+        rho = self.material.rho0 * (1 - self.porosity(a))
         
         return mass(a, rho)
 
@@ -322,5 +323,5 @@ class Dust:
         a = np.logspace(log_arange[0], log_arange[1], n)
         dmda = self.gsd(a) * self.mass(a)
         
-        return avint(arr, dmda, ar)
+        return avint(a, dmda, arange)
 

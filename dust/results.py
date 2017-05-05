@@ -12,18 +12,18 @@ class ModelResults:
     grains : list of Grains
       List of Grains used in the fit.
     scales : array-like
-      Grain size distribution scale factors for each dust collection.
-      May be an array with the same length as `grains`, or, to hold
-      multiple sets of scale factors, a 2-dimensional array with size
-      `N x len(grains)` (same as `fit.mcfit` results).
-    rchisq : array-like, optional
-      The reduced chi-squared statistic for each set of scales.
+      Grain size distribution scale factors for `grains`.  May be an
+      array with the same length as `grains`, or, to hold multiple
+      sets of scale factors, a 2-dimensional array with size `N x
+      len(grains)` (same as `fit.mcfit` results).
+    chisq : array-like, optional
+      The chi-squared statistic for each set of scales.
     dof : int, optional
       The number of degrees of freedom.
 
     """
 
-    def __init__(self, grains, scales, rchisq=None, dof=None):
+    def __init__(self, grains, scales, chisq=None, dof=None):
         from .materials import Grains
 
         assert all([isinstance(g, Grains) for g in grains])
@@ -36,7 +36,7 @@ class ModelResults:
         else:
             assert self.scales.shape[1] == len(grains)
 
-        self.rchisq = self._dimension_check(rchisq)
+        self.chisq = self._dimension_check(chisq)
         self.dof = dof
 
     def _dimension_check(self, a):
@@ -87,7 +87,7 @@ class ModelResults:
 
         from collections import OrderedDict
         from astropy.table import Table
-        from materials import MaterialType
+        from .materials import MaterialType
 
         if ratios is None:
             ratios = OrderedDict()
@@ -112,7 +112,7 @@ class ModelResults:
         # Name of the scale factors (Nps)
         names = ['s({})'.format(g.material.abbrev) for g in self.grains]
         # Total mass
-        names += ['M_total']
+        names += ['Mtot']
         # Name of the mass fractions
         names += ['f({})'.format(g.material.abbrev) for g in self.grains]
 
@@ -120,7 +120,7 @@ class ModelResults:
         data = [self.scales, self._dimension_check(m), f]
 
         meta = OrderedDict()
-        for g in enumerate(self.grains):
+        for g in self.grains:
             meta[g.material.abbrev] = g.material.name
 
         if self.dof is not None:
@@ -137,8 +137,8 @@ class ModelResults:
                 mass_ratios = np.zeros((len(ratios), f.shape[0]))
 
             for i, (name, equation) in enumerate(ratios.items()):
-                meta[name] = '{} / {}'.format(' '.join(equation[0]),
-                                              ' '.join(equation[1])).lower()
+                meta[name] = '{} / {}'.format(
+                    ' '.join(equation[0]), ' '.join(equation[1]))
                 numerator = 0
                 denominator = 0
                 for j, g in enumerate(self.grains):
@@ -152,10 +152,10 @@ class ModelResults:
             
             data.append(mass_ratios)
         
-        # Last column is rchisq, if available
-        if self.rchisq is not None:
-            names.append('rchisq')
-            data.append(self.rchisq)
+        # Last column is chisq, if available
+        if self.chisq is not None:
+            names.append('chisq')
+            data.append(self.chisq)
 
         # Assmble all columns from the data sources
         data = np.hstack(data)

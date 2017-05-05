@@ -170,7 +170,7 @@ def _fit_one_chi2(scales, fluxd, unc, mfluxd):
     return chi2
 
 def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
-                      cl=95, ar=(0.1, 1), **kwargs):
+                      cl=95, arange=(0.1, 1), **kwargs):
     """Fit a spectrum, estimate uncertainties on direct and derived parameters.
 
     Uses the Monte Carlo method to explore parameter space.
@@ -194,7 +194,7 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
       Number of Monte Carlo simulations to fit.
     cl : float, optional
       Confidence level for uncertainties in percentage points.
-    ar : tuple of float, optional
+    arange : tuple of float, optional
       Radius range for computing dust masses.
     **kwargs
       Keyword arguments for `mcfit`.
@@ -225,11 +225,10 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
     scales, chi2 = mcfit(fluxd, unc, mfluxd_i, best.scales, nmc, **kwargs)
 
     # create results object with MC fits
-    mcfits = ModelResults(best.dust, scales, rchisq=chi2 / best.dof,
-                          dof=best.dof)
+    mcfits = ModelResults(best.grains, scales, chisq=chi2, dof=best.dof)
 
     # get confidence limits
-    summary = summarize_mcfit(mcfits, best=best, cl=cl, ar=ar)
+    summary = summarize_mcfit(mcfits, best=best, cl=cl, arange=arange)
 
     return mcfits, summary
 
@@ -296,7 +295,7 @@ def mcfit(fluxd, unc, mfluxd, best, nmc, method='nnls', **kwargs):
 
     return scales, chi2
 
-def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
+def summarize_mcfit(results, best=None, cl=95, arange=(0.1, 1), bins=31):
     """Summarize the results of a Monte Carlo fit.
 
     Generally use either (1) `fit_uncertainties`, or (2) `mcfit` and
@@ -311,7 +310,7 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
       of each parameter for the best fit, estimated from a histogram.
     cl : float, optional
       Use this confidence limit to define uncertainties. [percentile]
-    ar : array-like, optional
+    arange : array-like, optional
       Use this radius range for computing dust masses.
     bins : int, optional
       Number of bins to use for best-fit estimation.
@@ -329,11 +328,11 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
 
     assert isinstance(results, ModelResults)
     assert isinstance(best, (ModelResults, type(None)))
-    assert len(ar) == 2
+    assert len(arange) == 2
     
-    tab = results.table(ar=ar)
+    tab = results.table(arange=arange)
     if best is not None:
-        best_tab = best.table(ar=ar)
+        best_tab = best.table(arange=arange)
 
 
     names = []
