@@ -140,7 +140,7 @@ class ModelResults:
         # Total mass
         names += ['M_total']
         # Name of the mass fractions
-        names += ['f_{}'.format(x) for x in self.material_names]
+        names += ['f_{}'.format(i) for i in range(Nmat)]
         # Name of calculated ratios
         names += ['r{}'.format(i) for i in range(4)]
         
