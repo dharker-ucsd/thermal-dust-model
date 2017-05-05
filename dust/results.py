@@ -9,13 +9,13 @@ class ModelResults:
 
     Parameters
     ----------
-    dust : list of Dust
-      List of dust collections used in the fit.
+    grains : list of Grains
+      List of Grains used in the fit.
     scales : array-like
       Grain size distribution scale factors for each dust collection.
-      May be an array with the same length as `dust`, or, to hold
+      May be an array with the same length as `grains`, or, to hold
       multiple sets of scale factors, a 2-dimensional array with size
-      `N x len(dust)` (same as `fit.mcfit` results).
+      `N x len(grains)` (same as `fit.mcfit` results).
     rchisq : array-like, optional
       The reduced chi-squared statistic for each set of scales.
     dof : int, optional
@@ -23,18 +23,18 @@ class ModelResults:
 
     """
 
-    def __init__(self, dust, scales, rchisq=None, dof=None):
-        from .materials import Dust
+    def __init__(self, grains, scales, rchisq=None, dof=None):
+        from .materials import Grains
 
-        assert all([isinstance(d, Dust) for d in dust])
-        self.dust = dust
+        assert all([isinstance(g, Grains) for g in grains])
+        self.grains = grains
 
         self.scales = np.array(scales)
         assert self.scales.ndim in [1, 2], '`scales` must have 1 or 2 dimensions.'
         if self.scales.ndim == 1:
-            assert len(self.scales) == len(dust)
+            assert len(self.scales) == len(grains)
         else:
-            assert self.scales.shape[1] == len(dust)
+            assert self.scales.shape[1] == len(grains)
 
         self.rchisq = self._dimension_check(rchisq)
         self.dof = dof
@@ -100,30 +100,28 @@ class ModelResults:
             for types in r:
                 assert all([isinstance(t, MaterialType) for t in types]), '`ratios` must be a list of two-element arrays.  The elements are lists of the types to use in the numerator and denominator.'
 
-        Ndust = len(self.dust)
-        Nsca = len(self.scales)
         m = self.total_mass(arange)
         if m.ndim == 1:
             m = m.sum()
         else:
             m = m.sum(-1)
 
-        # Compute the mass fraction of each dust collection
+        # Compute the mass fraction of each grain collection
         f = self.mass_fraction(arange)
 
         # Name of the scale factors (Nps)
-        names = ['s({})'.format(d.material.abbrev) for d in self.dust]
+        names = ['s({})'.format(g.material.abbrev) for g in self.grains]
         # Total mass
         names += ['M_total']
         # Name of the mass fractions
-        names += ['f({})'.format(d.material.abbrev) for d in self.dust]
+        names += ['f({})'.format(g.material.abbrev) for g in self.grains]
 
         # Nps, total mass, and mass fractions
         data = [self.scales, self._dimension_check(m), f]
 
         meta = OrderedDict()
-        for d in enumerate(self.dust):
-            meta[d.material.abbrev] = d.material.name
+        for g in enumerate(self.grains):
+            meta[g.material.abbrev] = g.material.name
 
         if self.dof is not None:
             meta['dof'] = self.dof
@@ -143,10 +141,10 @@ class ModelResults:
                                               ' '.join(equation[1])).lower()
                 numerator = 0
                 denominator = 0
-                for j, d in enumerate(self.dust):
-                    if all([m in d.material.mtype for m in equation[0]]):
+                for j, g in enumerate(self.grains):
+                    if all([m in g.material.mtype for m in equation[0]]):
                         numerator = numerator + f[j]
-                    if all([m in d.material.mtype for m in equation[1]]):
+                    if all([m in g.material.mtype for m in equation[1]]):
                         denominator = denominator + f[j]
 
                 names.append(name)
@@ -168,7 +166,7 @@ class ModelResults:
         return tab
 
     def total_mass(self, arange):
-        """Total mass of each dust collection for the given size range.
+        """Total mass of Grains for the given size range.
 
         Parameters
         ----------
@@ -186,14 +184,14 @@ class ModelResults:
         if arange[0] == arange[1]:
             return m
 
-        m = np.zeros(len(self.dust))
+        m = np.zeros(len(self.grains))
         for i in range(len(m)):
-            m[i] = self.dust[i].total_mass(arange)
+            m[i] = self.grains[i].total_mass(arange)
 
         return self.scales * m
 
     def mass_fraction(self, ar):
-        """Mass fraction of each dust collection for the given size range.
+        """Mass fraction of Grains for the given size range.
 
         Parameters
         ----------

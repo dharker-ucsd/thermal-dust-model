@@ -11,8 +11,8 @@ __all__ = [
 
 logger = logging.getLogger('thermal-dust-model')
 
-def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
-            material_names=None):
+def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters,
+            parameter_names=None, materials=None):
     """Run through a range of models with various parameters to fit
         to a spectrum
 
@@ -37,9 +37,8 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
       parameters in `mfluxd`.
     parameter_name : array-like of strings, optional
       A list of parameter names corresponding to the input parameters.
-    material_names : array-like of strings, optional
-      A list of material names corresponding to the number of dust
-      species in the N dimension of `mfluxd`.
+    materials : array of Material, optional
+      The materials used to compute the spectrum.
 
     Returns
     -------
@@ -52,13 +51,17 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
 
     from astropy.table import Table
     from itertools import product
-    from dust import util
+    from . import util
+    from .materials import Material
 
-    n = len(material_names)
-    if material_names is None:
+    if materials is None:
         material_names = ['mat{}'.format(i) for i in range(mfluxd.shape[0])]
-
-    scale_names = ['s_{}'.format(x) for x in material_names]
+    else:
+        assert all([isinstance(m, Material) for m in materials]), 'materials must be an array of Material.'
+        material_names = [m.abbrev for m in materials]
+    
+    n = len(material_names)
+    scale_names = ['s({})'.format(x) for x in material_names]
 
     if parameter_names is None:
         parameter_names = ['p{}'.format(i) for i in range(len(parameters))]
@@ -80,7 +83,7 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
     for indices in product(*[range(x) for x in mfluxd.shape[2:]]):
         i = (slice(None), slice(None)) + indices
 
-        # Interpolate over each material onto the wavelength grid of the observed spectrum
+        # Interpolate over each dust spectrum onto the wavelength grid of the observation
         mfluxd_i = np.zeros((n, len(wave)))
         for j in np.arange(0, n):
             mfluxd_i[j,:] = util.interp_model2comet(wave, mwave, mfluxd[i][j,:])
@@ -184,7 +187,7 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
       Spectral wavelengths for the model, units of μm.
     mfluxd : ndarray
       Model flux densities in an `NxM` array, where `N` is the number
-      of materials, and `M` is the number of wavelengths.
+      of dust components and `M` is the number of wavelengths.
     best : ModelResults
       Nominal best fit for given spectrum and model.
     nmc : int, optional
@@ -212,8 +215,8 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
     assert mfluxd.ndim == 2
     assert isinstance(best, ModelResults)
     
-    # Interpolate over each material onto the wavelength grid of the
-    # observed spectrum
+    # Interpolate each spectrum onto the wavelength grid of the
+    # observation
     mfluxd_i = np.zeros((mfluxd.shape[0], len(wave)))
     for i in np.arange(0, mfluxd.shape[0]):
         mfluxd_i[i] = util.interp_model2comet(wave, mwave, mfluxd[i])
@@ -222,9 +225,8 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
     scales, chi2 = mcfit(fluxd, unc, mfluxd_i, best.scales, nmc, **kwargs)
 
     # create results object with MC fits
-    mcfits = ModelResults(best.materials, scales, rchisq=chi2 / best.dof,
+    mcfits = ModelResults(best.dust, scales, rchisq=chi2 / best.dof,
                           dof=best.dof)
-
 
     # get confidence limits
     summary = summarize_mcfit(mcfits, best=best, cl=cl, ar=ar)
