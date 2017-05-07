@@ -222,7 +222,17 @@ for m in materials:
         grains.append(dust.Grains(m, porosity=dust.Solid(), gsd=gsd))
 
 # Save best model results.
-best_results = dust.ModelResults(grains, Np, chisq=chisq, dof=dof)
+ratios = OrderedDict()
+ratios['AS'] = ([MaterialType.AMORPHOUS, MaterialType.SILICATE],
+                [MaterialType.DUST])
+ratios['CS'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE],
+                [MaterialType.SILICATE])
+ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE],
+                    [MaterialType.DUST])
+ratios['S/C'] = ([MaterialType.SILICATE],
+                 [MaterialType.CARBONACEOUS])
+best_results = dust.ModelResults(grains, Np, chisq=chisq, dof=dof,
+                                 ratios=ratios)
 best_results.table().write(filenames['best'], format='ascii.ecsv')
 
 # If args.n > 0, pass to dust.fit_uncertainties.  Save all mcfits.

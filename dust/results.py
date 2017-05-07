@@ -55,7 +55,7 @@ class ModelResults:
 
         return a
 
-    def table(self, arange=(0.1, 1), ratios={}):
+    def table(self, arange=(0.1, 1), ratios=None):
         """Results summarized as a table.
 
         Parameters
@@ -96,7 +96,7 @@ class ModelResults:
             ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE], [MaterialType.DUST])
             ratios['S/C'] = ([MaterialType.SILICATE], [MaterialType.CARBONACEOUS])
 
-        for r in ratios:
+        for r in ratios.values():
             for types in r:
                 assert all([isinstance(t, MaterialType) for t in types]), '`ratios` must be a list of two-element arrays.  The elements are lists of the types to use in the numerator and denominator.'
 
@@ -134,21 +134,23 @@ class ModelResults:
             if f.ndim == 1:
                 mass_ratios = np.zeros(len(ratios))
             else:
-                mass_ratios = np.zeros((len(ratios), f.shape[0]))
+                mass_ratios = np.zeros((f.shape[0], len(ratios)))
 
             for i, (name, equation) in enumerate(ratios.items()):
-                meta[name] = '{} / {}'.format(
-                    ' '.join(equation[0]), ' '.join(equation[1]))
+                numerator_names = [x.value for x in equation[0]]
+                denominator_names = [x.value for x in equation[1]]
+                meta[name] = '{} / {}'.format(' '.join(numerator_names),
+                                              ' '.join(denominator_names))
                 numerator = 0
                 denominator = 0
                 for j, g in enumerate(self.grains):
                     if all([m in g.material.mtype for m in equation[0]]):
-                        numerator = numerator + f[j]
+                        numerator = numerator + f[..., j]
                     if all([m in g.material.mtype for m in equation[1]]):
-                        denominator = denominator + f[j]
+                        denominator = denominator + f[..., j]
 
                 names.append(name)
-                mass_ratios[i] = numerator / denominator
+                mass_ratios[..., i] = numerator / denominator
             
             data.append(mass_ratios)
         
