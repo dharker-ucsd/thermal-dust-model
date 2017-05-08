@@ -12,6 +12,7 @@ from astropy.io import ascii
 from astropy.table import Table
 from astropy import constants as const
 import dust
+from dust.materials import MaterialType
 
 def list_of(type):
     """Return a fuction that will split a string into a list of `type` objects.
@@ -138,7 +139,7 @@ assert any(i), 'Error: None of D={} in {}'.format(args.D, Ds)
 # Given the nature of the IDL save files, amorphous and crystalline materials
 # are treated differently.
 for j, mat in enumerate(materials):
-    if dust.MaterialType.AMORPHOUS in mat.mtype:
+    if MaterialType.AMORPHOUS in mat.mtype:
         mfluxd[j] = mfluxd[j][:, :, i]  # amorphous dust
     else:
         mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2) # crystalline dust
@@ -214,7 +215,7 @@ elif gsd_name.startswith('pow'):
 
 grains = []
 for m in materials:
-    if dust.MaterialType.AMORPHOUS in m.mtype:
+    if MaterialType.AMORPHOUS in m.mtype:
         # use fractal porosity
         grains.append(dust.Grains(m, porosity=porosity, gsd=gsd))
     else:
@@ -231,9 +232,8 @@ ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE],
                     [MaterialType.DUST])
 ratios['S/C'] = ([MaterialType.SILICATE],
                  [MaterialType.CARBONACEOUS])
-best_results = dust.ModelResults(grains, Np, chisq=chisq, dof=dof,
-                                 ratios=ratios)
-best_results.table().write(filenames['best'], format='ascii.ecsv')
+best_results = dust.ModelResults(grains, Np, chisq=chisq, dof=dof)
+best_results.table(ratios=ratios).write(filenames['best'], format='ascii.ecsv')
 
 # If args.n > 0, pass to dust.fit_uncertainties.  Save all mcfits.
 if args.n > 0:
