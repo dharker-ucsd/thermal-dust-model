@@ -163,7 +163,10 @@ class ModelResults:
             
         # Last column is chisq, if available
         if self.chisq is not None:
-            tab['chisq'] = self.chisq[0]
+            if len(tab) == 1:
+                tab['chisq'] = self.chisq[0]
+            else:
+                tab['chisq'] = self.chisq
             tab['chisq'].description = 'chi-squared statistic'        
         
         return tab
