@@ -25,8 +25,8 @@ def list_of(type):
     return lambda s: [type(item) for item in s.split(',')]
 
 
-parser = argparse.ArgumentParser(description='Plot a comet spectrum with the model fit.  Input files do not need to have the same units.  The default units to be plotted are from the spectrum.')
-parser.add_argument('spectrum', help='Name of the comet spectrum.  Must be a readable astropy Table, with wavelength in units of μm, and spectral data in units of flux density.')
+parser = argparse.ArgumentParser(description='Plot a comet spectrum with the model fit.  Input files do not need to have the same units, except wavelength must be μm, and the spectra must be have units of flux density.  The default units to be plotted are from the spectrum.')
+parser.add_argument('spectrum', help='Name of the comet spectrum.')
 parser.add_argument('model', help='Name of the file which has the model spectra.')
 parser.add_argument('--lfl', action='store_true', help='Plot lambda*F_lambda')
 parser.add_argument('--xlog', action='store_true', help='Set log x-axis')
@@ -94,36 +94,28 @@ else:
 
 #------------------------------------------------
 # Set up model spectra
+#
+# Required column names based on fit-idl-save.py: wave, F(total), F(*)
+# where * is a material abbreviation.
+#
 #------------------------------------------------
 model = ascii.read(args.model) # read the model file
-header = ascii.read(model.meta['comments'], delimiter='=', format='no_header', names=['key', 'val']) # get the header information
-munit_in = str(header[header['key'] == 'flux density unit']['val']).split('\n')[2] # units in the model file
-col_names = model.colnames # pull out the column names
-materials = col_names[2:len(col_names)] # get the name of the materials (probably redundant)
-wmodel = np.array(model[col_names[0]]) # pull out the wavelength column
-tmodel = np.array(model[col_names[1]])  # pull out the total model
-mcols = np.zeros((len(col_names)-2,len(model))) # set up array for the individual materials
-for i, c in enumerate(col_names[0:len(col_names)-2]):
-    mcols[i,:] = model[col_names[i+2]] # pull out the individual materials
+wmodel = u.Quantity(model['wave'])  # pull out the wavelength column
+tmodel = u.Quantity(model['F(total)'])  # pull out the total model
+materials = model.meta['materials included']
+mcols = u.Quantity(np.zeros((len(materials), len(model))), tmodel.unit) # set up array for the individual materials
+for i, m in enumerate(model.meta['materials included']):
+    mcols[i, :] = u.Quantity(model['F({})'.format(m)]) # pull out the individual materials
 
-# Convert units:
-if units == 'W/(cm2 um)':
-    if args.lfl:
-        tmodel = tmodel * u.Unit(munit_in).to('W/(cm2)', 1.0, u.spectral_density(wmodel * u.um))
-        mcols = mcols * u.Unit(munit_in).to('W/(cm2)', 1.0, u.spectral_density(wmodel * u.um))
-    else:
-        tmodel = tmodel * u.Unit(munit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wmodel * u.um))
-        mcols = mcols * u.Unit(munit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wmodel * u.um))
-if units == 'W/(m2 um)':
-    if args.lfl:
-        tmodel = tmodel * u.Unit(munit_in).to('W/(m2)', 1.0, u.spectral_density(wmodel * u.um))
-        mcols = mcols * u.Unit(munit_in).to('W/(m2)', 1.0, u.spectral_density(wmodel * u.um))
-    else:
-        tmodel = tmodel * u.Unit(munit_in).to('W/(m2 um)', 1.0, u.spectral_density(wmodel * u.um))
-        mcols = mcols * u.Unit(munit_in).to('W/(m2 um)', 1.0, u.spectral_density(wmodel * u.um))
-if units == 'Jy':
-    tmodel = tmodel * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
-    mcols = mcols * u.Unit(munit_in).to('Jy', 1.0, u.spectral_density(wmodel * u.um))
+# Convert model flux density units to plot units
+if args.lfl:
+    # plot is lfl, but model is flux density
+    tmodel = wmodel * tmodel.to(u.Unit(units) / u.um, u.spectral_density(wmodel))
+    mcols = wmodel * mcols.to(u.Unit(units) / u.um, u.spectral_density(wmodel))
+else:
+    # both plot and model are flux density
+    tmodel = tmodel.to(units, u.spectral_density(wmodel))
+    mcols = mcols.to(units, u.spectral_density(wmodel))
 
 #------------------------------------------------
 # Are the materials constrained?  Draw a dashed line if it is not.
@@ -212,7 +204,7 @@ for i, mats in enumerate(materials):
         ax.plot(wmodel, mcols[i,:], color=colors[mats], linestyle=line_dash[i]) 
 
 # Plot the total model in red
-ax.plot(wmodel, tmodel, color='red') 
+ax.plot(wmodel.value, tmodel.value, color='red')
 
 plt.show()
 
