@@ -105,7 +105,7 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters,
 
     return tab
 
-def fit_one(fluxd, unc, mfluxd, method='nnls', guess=None, **kwargs):
+def fit_one(fluxd, unc, mfluxd, guess=None, method='nnls', **kwargs):
     """Fit model dust scale factors to a spectrum.
 
     Parameters
@@ -305,7 +305,7 @@ def summarize_mcfit(results, best=None, cl=95, arange=(0.1, 1), bins=31):
     ----------
     results : ModelResults
       The ModelResults.
-    best : ModelResults
+    best : ModelResults, optional
       Use these scale factors for the best fit, otherwise use the mode
       of each parameter for the best fit, estimated from a histogram.
     cl : float, optional
@@ -357,9 +357,9 @@ def summarize_mcfit(results, best=None, cl=95, arange=(0.1, 1), bins=31):
         summary[col] = [c]
         summary['+' + col] = [ul - c]
         summary['-' + col] = [c - ll]
-        for pfx, desc in zip(['', '+', '-'], [best_tab[col].description, 'Offset to lower confidence limit on {}', 'Offset to upper confidence limit on {}']):
+        for pfx, desc in zip(['', '+', '-'], [tab[col].description, 'Offset to lower confidence limit on {}', 'Offset to upper confidence limit on {}']):
             summary[pfx + col].description = desc.format(col)
-            summary[pfx + col].unit = best_tab[col].unit
+            summary[pfx + col].unit = tab[col].unit
             
         logger.info('{} = {:.4g} +{:.4g} -{:.4g}'.format(
             col, c, ul - c, ll - c))
