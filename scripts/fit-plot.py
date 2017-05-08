@@ -33,7 +33,7 @@ parser.add_argument('--xlog', action='store_true', help='Set log x-axis')
 parser.add_argument('--ylog', action='store_true', help='Set log y-axis')
 parser.add_argument('--xlim', type=list_of(float), default='3.0, 25.0', help='Limits of the x-axis.  Default = "3.0 - 25.0"')
 parser.add_argument('--ylim', type=list_of(float), default='1e-19, 1e-15', help='Limits of the y-axis.  Default = "1e-19 - 1e-15"')
-parser.add_argument('--unit', default='', type=u.Unit, help='Flux density units on which to plot the comet spectrum and the model. Default are the units read from model file.')
+parser.add_argument('--unit', default='', type=u.Unit, help='Flux density units on which to plot the comet spectrum and the model.')
 parser.add_argument('--dash', action='store_true', help='Plot the unconstrained materials with a dashed line.  Need the relevant MCBEST file with same prefix as the BESTMODEL file in the same directory.')
 parser.add_argument('--colspec', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
 
