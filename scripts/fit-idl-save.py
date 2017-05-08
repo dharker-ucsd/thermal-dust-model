@@ -72,25 +72,27 @@ unc = spectrum[args.columns[2]]
 
 # Open IDL save files with idl.readsav
 files = []
-materials = ()
+materials = []
 for mat in args.materials:
     if mat == 'ap':
         files += ['fpyr50.idl']
-        materials += (dust.amorphous_pyroxene50,)
+        materials += [dust.amorphous_pyroxene50]
     elif mat == 'ao':
         files += ['fol50.idl']
-        materials += (dust.amorphous_olivine50,)
+        materials += [dust.amorphous_olivine50]
     elif mat == 'ac':
         files += ['fcar_e.idl']
-        materials += (dust.amorphous_carbon,)
+        materials += [dust.amorphous_carbon]
     elif mat == 'co':
         files += ['fsfor.idl']
-        materials += (dust.hot_forsterite95,)
+        materials += [dust.hot_forsterite95]
     elif mat == 'cp':
         files += ['fens.idl']
-        materials += (dust.hot_ortho_enstatite,)
+        materials += [dust.hot_ortho_enstatite]
     else:
         raise ValueError('Requested material is not recognized: {}'.format(mat))
+
+materials_abbrev = [m.abbrev for m in materials]
 
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 mwave = models[0]['wave_f']
@@ -159,9 +161,7 @@ meta = OrderedDict()
 meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
 meta['run on'] = time.strftime("%a %b %d %Y %I:%M:%S")
 meta['comet spectrum'] = args.spectrum
-meta['materials included'] = args.materials
-meta['wavelength unit'] = 'um'
-meta['flux density unit'] = str(args.unit)
+meta['materials included'] = materials_abbrev
 meta['r_h (AU)'] = args.rh
 meta['Delta (AU)'] = args.delta
 
@@ -202,6 +202,16 @@ fluxd_names = ['F({})'.format(m.abbrev) for m in materials]
 best_model = Table(names=['wave', 'F(total)'] + fluxd_names,
                    data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T,
                    meta=meta)
+
+# add units and material details to meta data
+best_model['wave'].unit = 'um'
+for i, col in enumerate(best_model.colnames[1:]):
+    best_model[col].unit = str(args.unit)
+    if i == 0:  # first column is total
+        best_model[col].description = 'Total model spectrum'
+    else:  # remaining are materials
+        best_model[col].description = materials[i - 1].name
+    
 best_model.write(filenames['bestmodel'], format='ascii.ecsv')
 
 # Save direct and derived parameters.
