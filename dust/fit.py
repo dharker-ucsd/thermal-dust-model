@@ -334,7 +334,6 @@ def summarize_mcfit(results, best=None, cl=95, arange=(0.1, 1), bins=31):
     if best is not None:
         best_tab = best.table(arange=arange)
 
-
     names = []
     dtype = []
     for i in range(len(tab.colnames)):
@@ -342,7 +341,7 @@ def summarize_mcfit(results, best=None, cl=95, arange=(0.1, 1), bins=31):
                       for pfx in ['', '+', '-']])
         dtype.extend([tab.dtype[i]] * 3)
 
-    row = [] 
+    summary = Table()
     for col in tab.colnames:
         # find the upper and lower limits
         ll = np.percentile(tab[col], (100 - cl) / 2)
@@ -355,10 +354,14 @@ def summarize_mcfit(results, best=None, cl=95, arange=(0.1, 1), bins=31):
         else:
             c = best_tab[col].data[0]
 
-        row.extend([c, ul - c, c - ll])
+        summary[col] = [c]
+        summary['+' + col] = [ul - c]
+        summary['-' + col] = [c - ll]
+        for pfx, desc in zip(['', '+', '-'], [best_tab[col].description, 'Offset to lower confidence limit on {}', 'Offset to upper confidence limit on {}']):
+            summary[pfx + col].description = desc.format(col)
+            summary[pfx + col].unit = best_tab[col].unit
+            
         logger.info('{} = {:.4g} +{:.4g} -{:.4g}'.format(
             col, c, ul - c, ll - c))
 
-    summary = Table(names=names, dtype=dtype)
-    summary.add_row(row)
     return summary
