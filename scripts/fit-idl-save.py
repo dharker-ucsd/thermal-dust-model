@@ -128,7 +128,7 @@ mfluxd = [m[:, i] for m in mfluxd]
 #  (300, 1, 59, 5, 6)
 
 # Pick out D, only for amorphous
-Ds = models[0]['D']
+Ds = np.around(models[0]['D'].astype('float64'), 3)
 i = np.zeros(len(Ds), bool)
 for j in range(len(Ds)):
     for D in args.D:
