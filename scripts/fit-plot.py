@@ -25,7 +25,7 @@ def list_of(type):
     return lambda s: [type(item) for item in s.split(',')]
 
 
-parser = argparse.ArgumentParser(description='Plot a comet spectrum with the model fit.  Input files do not need to have the same units, except wavelength must be μm, and the spectra must be have units of flux density.  The default units to be plotted are from the spectrum.')
+parser = argparse.ArgumentParser(description='Plot a comet spectrum with the model fit.  Input files do not need to have the same units, except wavelength must be μm, and the spectra must be have units of flux density.')
 parser.add_argument('spectrum', help='Name of the comet spectrum.')
 parser.add_argument('model', help='Name of the file which has the model spectra.')
 parser.add_argument('--lfl', action='store_true', help='Plot lambda*F_lambda')
@@ -33,7 +33,7 @@ parser.add_argument('--xlog', action='store_true', help='Set log x-axis')
 parser.add_argument('--ylog', action='store_true', help='Set log y-axis')
 parser.add_argument('--xlim', type=list_of(float), default='3.0, 25.0', help='Limits of the x-axis.  Default = "3.0 - 25.0"')
 parser.add_argument('--ylim', type=list_of(float), default='1e-19, 1e-15', help='Limits of the y-axis.  Default = "1e-19 - 1e-15"')
-parser.add_argument('--unit', default='', type=u.Unit, help='Flux density units on which to plot the comet spectrum and the model.')
+parser.add_argument('--unit', default='', type=u.Unit, help='Flux density units on which to plot the comet spectrum and the model.  The default are from the spectrum.')
 parser.add_argument('--dash', action='store_true', help='Plot the unconstrained materials with a dashed line.  Need the relevant MCBEST file with same prefix as the BESTMODEL file in the same directory.')
 parser.add_argument('--colspec', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
 
