@@ -100,7 +100,7 @@ class ModelResults:
             for types in r:
                 assert all([isinstance(t, MaterialType) for t in types]), '`ratios` must be a list of two-element arrays.  The elements are lists of the types to use in the numerator and denominator.'
 
-        m = self.total_mass(arange)
+        m = self.total_mass(arange)  # grams
         if m.ndim == 1:
             m = m.sum()
         else:
@@ -119,6 +119,9 @@ class ModelResults:
         # Nps, total mass, and mass fractions
         data = [self.scales, self._dimension_check(m), f]
 
+        # Assmble all columns from the data sources
+        data = np.hstack(data)
+
         meta = OrderedDict()
         for g in self.grains:
             meta[g.material.abbrev] = g.material.name
@@ -128,19 +131,21 @@ class ModelResults:
 
         meta['Radius range for masses'] = arange
 
+        # Define inital table content with headers and data
+        tab = Table(names=names, data=data, meta=meta)
+
+        # add column meta data
+        for g in self.grains:
+            m = '{}'.format(g.material.abbrev)
+            tab['s({})'.format(m)].description = 'Grain size distribution scale factor for component {}'.format(m)
+            tab['f({})'.format(m)].description = 'Mass fraction for component {} over requested grain size range'.format(m)
+            
+        tab['Mtot'].unit = 'g'
+        tab['Mtot'].description = 'Total grain mass over requested grain size range'
+
         # Calculate and include ratios, if requested
         if len(ratios) > 0:
-            ratio_names = []
-            if f.ndim == 1:
-                mass_ratios = np.zeros(len(ratios))
-            else:
-                mass_ratios = np.zeros((f.shape[0], len(ratios)))
-
             for i, (name, equation) in enumerate(ratios.items()):
-                numerator_names = [x.value for x in equation[0]]
-                denominator_names = [x.value for x in equation[1]]
-                meta[name] = '{} / {}'.format(' '.join(numerator_names),
-                                              ' '.join(denominator_names))
                 numerator = 0
                 denominator = 0
                 for j, g in enumerate(self.grains):
@@ -149,21 +154,17 @@ class ModelResults:
                     if all([m in g.material.mtype for m in equation[1]]):
                         denominator = denominator + f[..., j]
 
-                names.append(name)
-                mass_ratios[..., i] = numerator / denominator
+                tab[name] = numerator / denominator
+
+                numerator_names = [x.value for x in equation[0]]
+                denominator_names = [x.value for x in equation[1]]
+                tab[name].description = '{} / {}'.format(
+                    ' '.join(numerator_names), ' '.join(denominator_names))
             
-            data.append(mass_ratios)
-        
         # Last column is chisq, if available
         if self.chisq is not None:
-            names.append('chisq')
-            data.append(self.chisq)
-
-        # Assmble all columns from the data sources
-        data = np.hstack(data)
-
-        # Define the table with headers and data
-        tab = Table(names=names, data=data, meta=meta)
+            tab['chisq'] = self.chisq[0]
+            tab['chisq'].description = 'chi-squared statistic'        
         
         return tab
 
