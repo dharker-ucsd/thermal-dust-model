@@ -92,9 +92,9 @@ class ModelResults:
         if ratios is None:
             ratios = OrderedDict()
             ratios['AS'] = ([MaterialType.AMORPHOUS, MaterialType.SILICATE], [MaterialType.DUST])
-            ratios['CS'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE], [MaterialType.SILICATE])
-            ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE], [MaterialType.DUST])
+            ratios['CS'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE], [MaterialType.DUST])
             ratios['S/C'] = ([MaterialType.SILICATE], [MaterialType.CARBONACEOUS])
+            ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE], [MaterialType.SILICATE])
 
         for r in ratios.values():
             for types in r:

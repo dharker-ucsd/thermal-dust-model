@@ -237,11 +237,11 @@ ratios = OrderedDict()
 ratios['AS'] = ([MaterialType.AMORPHOUS, MaterialType.SILICATE],
                 [MaterialType.DUST])
 ratios['CS'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE],
-                [MaterialType.SILICATE])
-ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE],
                     [MaterialType.DUST])
 ratios['S/C'] = ([MaterialType.SILICATE],
                  [MaterialType.CARBONACEOUS])
+ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE],
+                [MaterialType.SILICATE])
 best_results = dust.ModelResults(grains, Np, chisq=chisq, dof=dof)
 best_results.table(ratios=ratios).write(filenames['best'], format='ascii.ecsv')
 
