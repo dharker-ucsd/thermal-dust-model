@@ -35,6 +35,18 @@ def plot_columns(fignum, tab, colnames, bins=None, best=None, **kwargs):
             if y == ny - 1:
                 axes[y, x].set_xlabel(colx)
 
+    if best is not None:
+        s = """{comet spectrum}
+Fit date: {run on}
+Materials: {materials included}
+$r_\\mathrm{{h}}$: {r_h (AU)} au
+$\\Delta$: {Delta (AU)} au
+$\\chi^2_\\nu$: {rchisq:.2f}
+GSD: {GSD}
+$a_p$: {a_p}
+$D$: {D}""".format(**best.meta)
+        fig.text(0.95, 0.98, s, va='top', ha='right', linespacing=1.5)
+        
     return fig
 
 def param_distribution(ax, py, px, bins, range=None):
