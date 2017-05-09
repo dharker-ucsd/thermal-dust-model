@@ -4,6 +4,7 @@ import matplotlib
 import numpy as np
 import astropy.units as u
 from astropy.io import ascii
+from astropy.visualization import quantity_support
 import matplotlib.pyplot as plt
 
 def list_of(type):
@@ -25,15 +26,16 @@ def list_of(type):
     return lambda s: [type(item) for item in s.split(',')]
 
 
-parser = argparse.ArgumentParser(description='Plot a comet spectrum with the model fit.  Input files do not need to have the same units, except wavelength must be μm, and the spectra must be have units of flux density.')
+parser = argparse.ArgumentParser(description='Plot a comet spectrum with the model fit.  Input files do not need to have the same units, except wavelength must be μm, and both input files must be have units of flux density.')
 parser.add_argument('spectrum', help='Name of the comet spectrum.')
 parser.add_argument('model', help='Name of the file which has the model spectra.')
-parser.add_argument('--lfl', action='store_true', help='Plot lambda*F_lambda')
 parser.add_argument('--xlog', action='store_true', help='Set log x-axis')
 parser.add_argument('--ylog', action='store_true', help='Set log y-axis')
-parser.add_argument('--xlim', type=list_of(float), default='3.0, 25.0', help='Limits of the x-axis.  Default = "3.0 - 25.0"')
-parser.add_argument('--ylim', type=list_of(float), default='1e-19, 1e-15', help='Limits of the y-axis.  Default = "1e-19 - 1e-15"')
-parser.add_argument('--unit', default='', type=u.Unit, help='Flux density units on which to plot the comet spectrum and the model.  The default are from the spectrum.')
+parser.add_argument('--xlim', type=list_of(float), default=[3.0, 25.0], help='Limits of the x-axis.  Default = "3.0 - 25.0"')
+parser.add_argument('--ylim', type=list_of(float), default=[1e-19, 1e-15], help='Limits of the y-axis.  Default = "1e-19 - 1e-15"')
+parser.add_argument('--yunit', type=u.Unit, default='W/(cm2 um)', help='Use these for the y-axis.  If plotting λF_λ, be sure to also set --lfl.')
+parser.add_argument('--lfl', action='store_true', help='--yunit is lambda*F_lambda.')
+parser.add_argument('--unit', type=u.Unit, help='Comet spectrum flux desnity units.  Default is to divine units from the spectrum header.')
 parser.add_argument('--dash', action='store_true', help='Plot the unconstrained materials with a dashed line.  Need the relevant MCBEST file with same prefix as the BESTMODEL file in the same directory.')
 parser.add_argument('--colspec', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
 
@@ -43,54 +45,26 @@ args = parser.parse_args()
 # Set up comet spectrum
 #------------------------------------------------
 spectrum = ascii.read(args.spectrum)
-wave = spectrum[args.colspec[0]]
-fluxd = spectrum[args.colspec[1]] #* u.Unit(unit_in)
-unc = spectrum[args.colspec[2]] #* u.Unit(unit_in)
-header = ascii.read(spectrum.meta['comments'], delimiter='=', format='no_header', names=['key', 'val'])
-sunit_in = str(header[header['key'] == 'flux density unit']['val']).split('\n')[2] # units in the spectrum file
+if args.unit is None:
+    header = ascii.read(spectrum.meta['comments'], delimiter='=',
+                        format='no_header', names=['key', 'val'])
+    i = header['key'] == 'flux density unit'
+    assert any(i), '--unit not specified and "flux density unit" not found in spectrum table header.'
+    unit = u.Unit(header[i]['val'][0])
 
-if args.unit != '':
-    if args.unit == 'W/(cm2 um)':
-        if args.lfl:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
-        else:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
-        units = 'W/(cm2 um)'
-    if args.unit == 'W/(m2 um)':
-        if args.lfl:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
-        else:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
-        units = 'W/(m2 um)'
-    if args.unit == 'Jy':
-        fluxd = fluxd * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
-        unc = unc * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
-        units = 'Jy'
+wave = spectrum[args.colspec[0]] * u.um
+fluxd = spectrum[args.colspec[1]] * unit
+unc = spectrum[args.colspec[2]] * unit
+
+# Convert spectrum flux density units to plot units
+if args.lfl:
+    # plot is lfl, but spectrum is flux density
+    fluxd = wave * fluxd.to(args.yunit / u.um, u.spectral_density(wave))
+    unc = wave * unc.to(args.yunit / u.um, u.spectral_density(wave))
 else:
-    if sunit_in == 'W / (cm2 um)':
-        if args.lfl:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(cm2)', 1.0, u.spectral_density(wave * u.um))
-        else:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(cm2 um)', 1.0, u.spectral_density(wave * u.um))
-        units = 'W/(cm2 um)'
-    if sunit_in == 'W / (m2 um)':
-        if args.lfl:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(m2)', 1.0, u.spectral_density(wave * u.um))
-        else:
-            fluxd = fluxd * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
-            unc = unc * u.Unit(sunit_in).to('W/(m2 um)', 1.0, u.spectral_density(wave * u.um))
-        units = 'W/(m2 um)'
-    if sunit_in == 'Jy':
-        fluxd = fluxd * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
-        unc = unc * u.Unit(sunit_in).to('Jy', 1.0, u.spectral_density(wave * u.um))
-        units = 'Jy'
+    # both plot and spectrum are flux density
+    fluxd = fluxd.to(args.yunit, u.spectral_density(wave))
+    unc = unc.to(args.yunit, u.spectral_density(wave))
 
 #------------------------------------------------
 # Set up model spectra
@@ -110,12 +84,12 @@ for i, m in enumerate(model.meta['materials included']):
 # Convert model flux density units to plot units
 if args.lfl:
     # plot is lfl, but model is flux density
-    tmodel = wmodel * tmodel.to(u.Unit(units) / u.um, u.spectral_density(wmodel))
-    mcols = wmodel * mcols.to(u.Unit(units) / u.um, u.spectral_density(wmodel))
+    tmodel = wmodel * tmodel.to(args.yunit / u.um, u.spectral_density(wmodel))
+    mcols = wmodel * mcols.to(args.yunit / u.um, u.spectral_density(wmodel))
 else:
     # both plot and model are flux density
-    tmodel = tmodel.to(units, u.spectral_density(wmodel))
-    mcols = mcols.to(units, u.spectral_density(wmodel))
+    tmodel = tmodel.to(args.yunit, u.spectral_density(wmodel))
+    mcols = mcols.to(args.yunit, u.spectral_density(wmodel))
 
 #------------------------------------------------
 # Are the materials constrained?  Draw a dashed line if it is not.
@@ -167,18 +141,20 @@ plt.ylim(args.ylim) # set y-axis limits
 
 # Define the axis labels
 plt.xlabel('Wavelength ($\mu$m)', fontsize=14, fontweight='bold') #, **hfont) # set x-axis label
-if (units == 'W/(cm2 um)') and (args.lfl):
-    ylabel_name = '$\lambda$F$_{\lambda}$ (W cm$^{-2}$)'
-if (units == 'W/(cm2 um)') and (not args.lfl):
-    ylabel_name = 'F$_{\lambda}$ (W cm$^{-2}$ $\mu$m$^{-1}$)'
-if (units == 'W/(m2 um)') and (args.lfl):
-    ylabel_name = '$\lambda$F$_{\lambda}$ (W m$^{-2}$)'
-if (units == 'W/(m2 um)') and (not args.lfl):
-    ylabel_name = 'F$_{\lambda}$ (W m$^{-2}$ $\mu$m$^{-1}$)'
-if units == 'Jy':
-    ylabel_name = 'F(Jy)'
 
-plt.ylabel(ylabel_name, fontsize=14, fontweight='bold') #, **hfont)  # set y-axis label 
+if args.lfl:
+    ylabel = '$\lambda F_\lambda$ ({})'
+else:
+    if args.yunit.is_equivalent('W/(m2 um)'):
+        ylabel = '$F_\lambda$ ({})'
+    else:
+        # must be per frequency
+        ylabel = '$F_\nu$ ({})'
+ylabel = ylabel.format(args.yunit.to_string('latex_inline'))
+# ugly hack to fix unit order  :(  Need to fix in astropy.units.format.latex
+ylabel = ylabel.replace('\\mu m^{-1}\\,cm^{-2}', 'cm^{-2}\\,\\mu m^{-1}')
+ylabel = ylabel.replace('\\mu m^{-1}\\,m^{-2}', 'm^{-2}\\,\\mu m^{-1}')
+plt.ylabel(ylabel, fontsize=14, fontweight='bold') #, **hfont)  # set y-axis label 
 
 # Set axis to log if flagged.
 if args.xlog:
@@ -187,25 +163,31 @@ if args.ylog:
     ax.set_yscale("log", nonposx='clip')
 
 # Plot the data.
-ax.plot(wave,fluxd,'ko',markersize=4) # plot data
-ax.plot(wave,fluxd,'w.',markersize=2) # plot data
-ax.errorbar(wave,fluxd,yerr=unc,ecolor='k',fmt='none', capsize=2) # plot error bars
+with quantity_support():
+    ax.plot(wave, fluxd, 'ko', markersize=4) # plot data
+    ax.plot(wave, fluxd, 'w.', markersize=2) # plot data
+
+# quantity_support fails for errorbar
+ax.errorbar(wave.value, fluxd.value, yerr=unc.value, ecolor='k', fmt='none', capsize=2) # plot error bars
 
 # Set up the colors for the materials in a dictionary
-colors = {'ap': 'blue', 'ao': 'cyan', 'ac': 'darkorange', 'co': 'green', 'cp': 'magenta', 'other': 'black'}
+colors = {'ap': 'blue', 'ap50': 'blue', 'ao': 'cyan', 'ao50': 'cyan', 'ac': 'darkorange', 'co': 'green', 'cp': 'magenta', 'other': 'black'}
 
 # Plot the materials
 for i, mats in enumerate(materials):
-    try:
-        colors[mats]
-    except KeyError:
-        ax.plot(wmodel, mcols[i,:], color=colors['other'], linestyle=line_dash[i])
-    else:
-        ax.plot(wmodel, mcols[i,:], color=colors[mats], linestyle=line_dash[i]) 
+    with quantity_support():
+        try:
+            colors[mats]
+        except KeyError:
+            ax.plot(wmodel.value, mcols[i, :].value, color=colors['other'], linestyle=line_dash[i])
+        else:
+            ax.plot(wmodel.value, mcols[i,:].value, color=colors[mats], linestyle=line_dash[i]) 
 
 # Plot the total model in red
-ax.plot(wmodel.value, tmodel.value, color='red')
-
+with quantity_support():
+    ax.plot(wmodel, tmodel, color='red')
+plt.subplots_adjust()
+plt.draw()
 plt.show()
 
 
