@@ -5,6 +5,7 @@ import numpy as np
 import astropy.units as u
 from astropy.io import ascii
 import matplotlib.pyplot as plt
+import matplotlib
 
 def list_of(type):
     """Return a fuction that will split a string into a list of `type` objects.
@@ -94,15 +95,16 @@ if args.dash:
         line_dash = ["solid" for x in range(len(materials))]
     else:
         line_dash = []
-        for i in range(len(materials)):
-            num = float(np_table['s{}'.format(i)]) 
-            mnum = float(-np_table['-s{}'.format(i)]) 
+        for m in materials:
+            num = float(np_table['s({})'.format(m)]) 
+            mnum = float(-np_table['-s({})'.format(m)]) 
             if num + mnum == 0:
                 line_dash += ['dashed']
             else:
                 line_dash += ['solid']
 else:
     line_dash = ["solid" for x in range(len(materials))]
+
 
 #------------------------------------------------
 # We have all the data, so now start the plotting
@@ -126,7 +128,7 @@ plt.rc('ytick', labelsize=14) # set the y-axis tick label size
 plt.tick_params(length=10) # set the length of the major ticks
 plt.tick_params(direction='in',which='minor',length=5) # set the direction and length of the minor ticks
 plt.tick_params(direction='in',which='both',width=2) # set the width of all ticks
-plt.ticklabel_format(axis='both', fontweight='bold') # bold the tock labels
+
 
 plt.xlim(args.xlim) # set x-axis limits
 plt.ylim(args.ylim) # set y-axis limits
@@ -172,6 +174,10 @@ for i, mats in enumerate(materials):
         ax.plot(wmodel.value, mcols[i, :].value, color=colors['other'], linestyle=line_dash[i])
     else:
         ax.plot(wmodel.value, mcols[i,:].value, color=colors[mats], linestyle=line_dash[i]) 
+
+ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+ax.xaxis.set_minor_formatter(matplotlib.ticker.ScalarFormatter())
+ax.ticklabel_format(axis='both', fontweight='bold') # bold the tick labels
 
 # Plot the total model in red
 ax.plot(wmodel.value, tmodel.value, color='red')
