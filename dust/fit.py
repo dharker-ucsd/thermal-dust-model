@@ -11,8 +11,8 @@ __all__ = [
 
 logger = logging.getLogger('thermal-dust-model')
 
-def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
-            material_names=None):
+def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters,
+            parameter_names=None, materials=None):
     """Run through a range of models with various parameters to fit
         to a spectrum
 
@@ -37,9 +37,8 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
       parameters in `mfluxd`.
     parameter_name : array-like of strings, optional
       A list of parameter names corresponding to the input parameters.
-    material_names : array-like of strings, optional
-      A list of material names corresponding to the number of dust
-      species in the N dimension of `mfluxd`.
+    materials : array of Material, optional
+      The materials used to compute the spectrum.
 
     Returns
     -------
@@ -52,16 +51,22 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
 
     from astropy.table import Table
     from itertools import product
-    from dust import util
+    from . import util
+    from .materials import Material
 
-    n = len(material_names)
-    if material_names is None:
+    if materials is None:
         material_names = ['mat{}'.format(i) for i in range(mfluxd.shape[0])]
+    else:
+        assert all([isinstance(m, Material) for m in materials]), 'materials must be an array of Material.'
+        material_names = [m.abbrev for m in materials]
+    
+    n = len(material_names)
+    scale_names = ['s({})'.format(x) for x in material_names]
 
     if parameter_names is None:
         parameter_names = ['p{}'.format(i) for i in range(len(parameters))]
 
-    names = parameter_names + material_names + ('chisq',)
+    names = list(parameter_names) + scale_names + ['chisq']
     dtype = []
     for p in parameters:
         if type(p) == str:
@@ -78,7 +83,7 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
     for indices in product(*[range(x) for x in mfluxd.shape[2:]]):
         i = (slice(None), slice(None)) + indices
 
-        # Interpolate over each material onto the wavelength grid of the observed spectrum
+        # Interpolate over each dust spectrum onto the wavelength grid of the observation
         mfluxd_i = np.zeros((n, len(wave)))
         for j in np.arange(0, n):
             mfluxd_i[j,:] = util.interp_model2comet(wave, mwave, mfluxd[i][j,:])
@@ -100,7 +105,7 @@ def fit_all(wave, fluxd, unc, mwave, mfluxd, parameters, parameter_names=None,
 
     return tab
 
-def fit_one(fluxd, unc, mfluxd, method='nnls', guess=None, **kwargs):
+def fit_one(fluxd, unc, mfluxd, guess=None, method='nnls', **kwargs):
     """Fit model dust scale factors to a spectrum.
 
     Parameters
@@ -165,7 +170,7 @@ def _fit_one_chi2(scales, fluxd, unc, mfluxd):
     return chi2
 
 def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
-                      cl=95, ar=(0.1, 1), **kwargs):
+                      cl=95, arange=(0.1, 1), **kwargs):
     """Fit a spectrum, estimate uncertainties on direct and derived parameters.
 
     Uses the Monte Carlo method to explore parameter space.
@@ -182,14 +187,14 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
       Spectral wavelengths for the model, units of μm.
     mfluxd : ndarray
       Model flux densities in an `NxM` array, where `N` is the number
-      of materials, and `M` is the number of wavelengths.
+      of dust components and `M` is the number of wavelengths.
     best : ModelResults
       Nominal best fit for given spectrum and model.
     nmc : int, optional
       Number of Monte Carlo simulations to fit.
     cl : float, optional
       Confidence level for uncertainties in percentage points.
-    ar : tuple of float, optional
+    arange : tuple of float, optional
       Radius range for computing dust masses.
     **kwargs
       Keyword arguments for `mcfit`.
@@ -210,8 +215,8 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
     assert mfluxd.ndim == 2
     assert isinstance(best, ModelResults)
     
-    # Interpolate over each material onto the wavelength grid of the
-    # observed spectrum
+    # Interpolate each spectrum onto the wavelength grid of the
+    # observation
     mfluxd_i = np.zeros((mfluxd.shape[0], len(wave)))
     for i in np.arange(0, mfluxd.shape[0]):
         mfluxd_i[i] = util.interp_model2comet(wave, mwave, mfluxd[i])
@@ -220,12 +225,10 @@ def fit_uncertainties(wave, fluxd, unc, mwave, mfluxd, best, nmc=10000,
     scales, chi2 = mcfit(fluxd, unc, mfluxd_i, best.scales, nmc, **kwargs)
 
     # create results object with MC fits
-    mcfits = ModelResults(best.materials, scales, rchisq=chi2 / best.dof,
-                          dof=best.dof)
-
+    mcfits = ModelResults(best.grains, scales, chisq=chi2, dof=best.dof)
 
     # get confidence limits
-    summary = summarize_mcfit(mcfits, best=best, cl=cl, ar=ar)
+    summary = summarize_mcfit(mcfits, best=best, cl=cl, arange=arange)
 
     return mcfits, summary
 
@@ -292,7 +295,7 @@ def mcfit(fluxd, unc, mfluxd, best, nmc, method='nnls', **kwargs):
 
     return scales, chi2
 
-def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
+def summarize_mcfit(results, best=None, cl=95, arange=(0.1, 1), bins=31):
     """Summarize the results of a Monte Carlo fit.
 
     Generally use either (1) `fit_uncertainties`, or (2) `mcfit` and
@@ -302,12 +305,12 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
     ----------
     results : ModelResults
       The ModelResults.
-    best : ModelResults
+    best : ModelResults, optional
       Use these scale factors for the best fit, otherwise use the mode
       of each parameter for the best fit, estimated from a histogram.
     cl : float, optional
       Use this confidence limit to define uncertainties. [percentile]
-    ar : array-like, optional
+    arange : array-like, optional
       Use this radius range for computing dust masses.
     bins : int, optional
       Number of bins to use for best-fit estimation.
@@ -325,12 +328,11 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
 
     assert isinstance(results, ModelResults)
     assert isinstance(best, (ModelResults, type(None)))
-    assert len(ar) == 2
+    assert len(arange) == 2
     
-    tab = results.table(ar=ar)
+    tab = results.table(arange=arange)
     if best is not None:
-        best_tab = best.table(ar=ar)
-
+        best_tab = best.table(arange=arange)
 
     names = []
     dtype = []
@@ -339,7 +341,7 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
                       for pfx in ['', '+', '-']])
         dtype.extend([tab.dtype[i]] * 3)
 
-    row = [] 
+    summary = Table()
     for col in tab.colnames:
         # find the upper and lower limits
         ll = np.percentile(tab[col], (100 - cl) / 2)
@@ -352,10 +354,14 @@ def summarize_mcfit(results, best=None, cl=95, ar=(0.1, 1), bins=31):
         else:
             c = best_tab[col].data[0]
 
-        row.extend([c, ul - c, c - ll])
+        summary[col] = [c]
+        summary['+' + col] = [ul - c]
+        summary['-' + col] = [c - ll]
+        for pfx, desc in zip(['', '+', '-'], [tab[col].description, 'Offset to lower confidence limit on {}', 'Offset to upper confidence limit on {}']):
+            summary[pfx + col].description = desc.format(col)
+            summary[pfx + col].unit = tab[col].unit
+            
         logger.info('{} = {:.4g} +{:.4g} -{:.4g}'.format(
             col, c, ul - c, ll - c))
 
-    summary = Table(names=names, dtype=dtype)
-    summary.add_row(row)
     return summary

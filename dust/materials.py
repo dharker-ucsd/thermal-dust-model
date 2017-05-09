@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from enum import Enum
 import numpy as np
 
 __all__ = [
@@ -7,12 +8,14 @@ __all__ = [
     'ConstantPorosity',
     'HannerGSD',
     'PowerLaw',
+    'MaterialType',
     'Material',
-    'AmorphousOlivine50',
-    'AmorphousPyroxene50',
-    'AmorphousCarbon',
-    'HotForsterite95',
-    'HotOrthoEnstatite',
+    'amorphous_olivine50',
+    'amorphous_pyroxene50',
+    'amorphous_carbon',
+    'hot_forsterite95',
+    'hot_ortho_enstatite',
+    'Grains',
 ]
 
 class PorosityModel(ABC):
@@ -206,18 +209,64 @@ class PowerLaw(GrainSizeDistribution):
         from .util import power_law
         return power_law(a, self.a0, self.powlaw)
 
+class MaterialType(Enum):
+    AMORPHOUS = 'amorphous'
+    CRYSTALLINE = 'crystalline'
+    SILICATE = 'silicate'
+    CARBONACEOUS = 'carbonaceous'
+    DUST = 'dust'
+    ICE = 'ice'
+    
 class Material:
-    """A single instance of a material.
+    """Bulk material properties.
 
     Parameters
     ----------
     name : string
       The name of the material.
+    abbrev : string
+      An unqiue abbreviation for the material.
     rho0 : float
       The bulk material density in g/cm3.
-    mattype : string
-      Indicates type of material: 'asil' = amorphous silicate, 'acar' = amorphous carbon
-      'csil' = crystalline silicate
+    mtype : tuple of MaterialTypes, optional
+      Type of material.
+    
+    """
+
+    def __init__(self, name, abbrev, rho0, mtype=None):
+        self.name = name
+        self.abbrev = abbrev
+        self.rho0 = rho0
+        assert isinstance(mtype, (list, tuple))
+        self.mtype = tuple() if mtype is None else tuple(mtype)
+
+amorphous_olivine50 = Material(
+    'Amorphous olivine Mg/Fe 50/50', 'ao50', 3.3,
+    (MaterialType.AMORPHOUS, MaterialType.SILICATE, MaterialType.DUST))
+
+amorphous_pyroxene50 = Material(
+    'Amorphous pyroxene Mg/Fe 50/50', 'ap50', 3.3,
+    (MaterialType.AMORPHOUS, MaterialType.SILICATE, MaterialType.DUST))
+
+amorphous_carbon = Material(
+    'Amorphous carbon', 'ac', 2.5,
+    (MaterialType.AMORPHOUS, MaterialType.CARBONACEOUS, MaterialType.DUST))
+
+hot_forsterite95 = Material(
+    'Hot forsterite 95', 'co', 3.3,
+    (MaterialType.CRYSTALLINE, MaterialType.SILICATE, MaterialType.DUST))
+
+hot_ortho_enstatite = Material(
+    'Hot ortho-enstatite', 'cp', 3.3,
+    (MaterialType.CRYSTALLINE, MaterialType.SILICATE, MaterialType.DUST))
+
+class Grains:
+    """A grain, or collection thereof.
+
+    Parameters
+    ----------
+    material : Material
+      The bulk material of which the dust is composed.
     porosity : PorosityModel, optional
       A description of the porosity as a function of size.
     gsd : GrainSizeDistribution, optional
@@ -225,10 +274,11 @@ class Material:
     
     """
 
-    def __init__(self, name, rho0, mtype, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        self.name = name
-        self.rho0 = rho0
-        self.mtype = mtype
+    def __init__(self, material, porosity=Solid(), gsd=PowerLaw(1.,0)):
+        assert isinstance(material, Material)
+        assert isinstance(porosity, PorosityModel)
+        assert isinstance(gsd, GrainSizeDistribution)
+        self.material = material
         self.porosity = porosity
         self.gsd = gsd
 
@@ -247,81 +297,31 @@ class Material:
 
         """
         from .util import mass
-        
-        rho = self.rho0 * (1 - self.porosity(a))
+
+        rho = self.material.rho0 * (1 - self.porosity(a))
         
         return mass(a, rho)
 
-    def total_mass(self, ar):
+    def total_mass(self, arange):
         """Total mass over a range of radii weighted by the GSD.
         
         Parameters
         ----------
-        ar : two element array
+        arange : two element array
           Lower and upper grain radii range over which to compute mass.
           
         """
         
         from numpy import pi
         from .util import avint
+
+        assert np.iterable(arange)
+        assert len(arange) == 2
         
-        log_ar = np.log10(ar)
-        n = max(log_ar.ptp(), 1) * 10000
-        arr = np.logspace(log_ar[0], log_ar[1], n)
-        dmda = 4e-12 / 3 * pi * arr**3 * self.gsd(arr) * self.rho0 * (1 - self.porosity(arr))
+        log_arange = np.log10(arange)
+        n = max(log_arange.ptp(), 1) * 10000
+        a = np.logspace(log_arange[0], log_arange[1], n)
+        dmda = self.gsd(a) * self.mass(a)
         
-        return avint(arr,dmda,ar)
+        return avint(a, dmda, arange)
 
-class AmorphousOlivine50(Material):
-    """Amorphous olivine, Mg/Fe = 50/50.
-
-    Parameters
-    ----------
-    porosity : PorosityModel, optional
-      A description of the porosity as a function of size.
-
-    """
-
-    def __init__(self, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Amorphous olivine 50/50', 3.3, 'asil',
-                          porosity=porosity, gsd=gsd)
-
-class AmorphousPyroxene50(Material):
-    """Amorphous pyroxene, Mg/Fe = 50/50.
-
-    Parameters
-    ----------
-    porosity : PorosityModel, optional
-      A description of the porosity as a function of size.
-
-    """
-
-    def __init__(self, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Amorphous pyroxene 50/50', 3.3, 'asil',
-                          porosity=porosity, gsd=gsd)
-
-class AmorphousCarbon(Material):
-    """Amorphous carbon.
-
-    Parameters
-    ----------
-    porosity : PorosityModel, optional
-      A description of the porosity as a function of size.
-
-    """
-
-    def __init__(self, porosity=Solid(), gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Amorphous carbon', 2.5, 'acar',
-                          porosity=porosity, gsd=gsd)
-
-class HotForsterite95(Material):
-    """Mg-rich olivine (Fo95), hot crystal model."""
-
-    def __init__(self, gsd=PowerLaw(1.,0,)):
-        Material.__init__(self, 'Hot forsterite 95', 3.3, 'csil', porosity=Solid(), gsd=gsd)
-
-class HotOrthoEnstatite(Material):
-    """Mg-rich ortho enstantite, hot crystal model."""
-
-    def __init__(self, gsd=PowerLaw(1.,0)):
-        Material.__init__(self, 'Hot ortho-enstatite', 3.3, 'csil', porosity=Solid(), gsd=gsd)

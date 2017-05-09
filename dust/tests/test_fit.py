@@ -76,21 +76,21 @@ class TestSummarizeMCFit:
         scales[:, 1] = scales[:, 1] * unc[1] + best_scales[1]
 
         gsd = mat.PowerLaw(0.1, 0)
-        materials = [mat.AmorphousCarbon(gsd=gsd),
-                     mat.AmorphousOlivine50(gsd=gsd)]
+        materials = [mat.amorphous_carbon, mat.amorphous_olivine50]
+        grains = [mat.Grains(m, gsd=gsd) for m in materials]
         
-        best = ModelResults(materials, best_scales)
-        results = ModelResults(materials, scales)
+        best = ModelResults(grains, best_scales)
+        results = ModelResults(grains, scales)
 
         s = 2  # get 2-sigma results
         cl = 0.5 * (erf(s / np.sqrt(2.0)) - erf(-s / np.sqrt(2.0))) * 100
         summary = summarize_mcfit(results, cl=cl)
 
-        limits = best_scales[0] + s * unc[0] * np.array((-1, 1))
-        assert np.allclose(summary['s0'][1:], limits, rtol=0.05)
-
-        limits = best_scales[1] + s * unc[1] * np.array((-1, 1))
-        assert np.allclose(summary['s1'][1:], limits, rtol=0.05)
+        for i in range(len(best_scales)):
+            k = 's({})'.format(materials[i].abbrev)
+            limits = best_scales[i] + s * unc[i] * np.array((-1, 1))
+            assert np.allclose(summary['-' + k][1:], limits[0], rtol=0.05)
+            assert np.allclose(summary['+' + k][1:], limits[1], rtol=0.05)
 
     def test_best_fit_finding(self):
         from ..fit import summarize_mcfit
@@ -104,12 +104,13 @@ class TestSummarizeMCFit:
         scales[:, 1] = scales[:, 1] * unc[1] + best_scales[1]
 
         gsd = mat.PowerLaw(0.1, 0)
-        materials = [mat.AmorphousCarbon(gsd=gsd),
-                     mat.AmorphousOlivine50(gsd=gsd)]
+        materials = [mat.amorphous_carbon, mat.amorphous_olivine50]
+        grains = [mat.Grains(m, gsd=gsd) for m in materials]
         
-        results = ModelResults(materials, scales)
+        results = ModelResults(grains, scales)
 
         summary = summarize_mcfit(results)
 
-        assert np.isclose(summary['s0'][0], best_scales[0], rtol=0.05)
-        assert np.isclose(summary['s1'][0], best_scales[1], rtol=0.05)
+        for i in range(len(best_scales)):
+            k = 's({})'.format(materials[i].abbrev)
+            assert np.isclose(summary[k][0], best_scales[i], rtol=0.05)

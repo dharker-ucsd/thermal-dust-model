@@ -12,6 +12,7 @@ from astropy.io import ascii
 from astropy.table import Table
 from astropy import constants as const
 import dust
+from dust.materials import MaterialType
 
 def list_of(type):
     """Return a fuction that will split a string into a list of `type` objects.
@@ -42,7 +43,7 @@ parser.add_argument('--unit', default='W/(m2 um)', type=u.Unit, help='Flux densi
 parser.add_argument('--delta', default=1., type=float, help='The geocentric distance of the comet in AU.')
 parser.add_argument('--columns', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite previous output, if it exists.')
-parser.add_argument('--material_names', type=list_of(str), default=['ap','ao','ac','co','cp'], help='Names of the materials to include in model fits, default="ap","ao","ac","co","cp"')
+parser.add_argument('--materials', type=list_of(str), default=['ap','ao','ac','co','cp'], help='Names of the materials to include in model fits, default="ap","ao","ac","co","cp"')
 
 args = parser.parse_args()
 
@@ -59,7 +60,7 @@ for f in filenames.values():
         if args.overwrite:
             os.unlink(f)
         else:
-            raise AssertionError('{} exists, remove or use --overwrite')
+            raise AssertionError('{} exists, remove or use --overwrite'.format(f))
 
 assert args.unit.is_equivalent('W/(cm2 um)', u.spectral_density(1 * u.um)), 'Comet spectrum must be in units of flux density.'
 
@@ -69,27 +70,29 @@ wave = spectrum[args.columns[0]]
 fluxd = spectrum[args.columns[1]]
 unc = spectrum[args.columns[2]]
 
-# Open IDL save files with idl.readsav, preserve this order:
-#files = ['fpyr50.idl', 'fol50.idl', 'fcar_e.idl', 'fsfor.idl', 'fens.idl']
+# Open IDL save files with idl.readsav
 files = []
-material_classes = ()
-args.material_names = tuple(args.material_names)
-for mat in args.material_names:
+materials = []
+for mat in args.materials:
     if mat == 'ap':
         files += ['fpyr50.idl']
-        material_classes += (dust.AmorphousPyroxene50,)
-    if mat == 'ao':
+        materials += [dust.amorphous_pyroxene50]
+    elif mat == 'ao':
         files += ['fol50.idl']
-        material_classes += (dust.AmorphousOlivine50,)
-    if mat == 'ac':
+        materials += [dust.amorphous_olivine50]
+    elif mat == 'ac':
         files += ['fcar_e.idl']
-        material_classes += (dust.AmorphousCarbon,)
-    if mat == 'co':
+        materials += [dust.amorphous_carbon]
+    elif mat == 'co':
         files += ['fsfor.idl']
-        material_classes += (dust.HotForsterite95,)
-    if mat == 'cp':
+        materials += [dust.hot_forsterite95]
+    elif mat == 'cp':
         files += ['fens.idl']
-        material_classes += (dust.HotOrthoEnstatite,)
+        materials += [dust.hot_ortho_enstatite]
+    else:
+        raise ValueError('Requested material is not recognized: {}'.format(mat))
+
+materials_abbrev = [m.abbrev for m in materials]
 
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 mwave = models[0]['wave_f']
@@ -125,7 +128,7 @@ mfluxd = [m[:, i] for m in mfluxd]
 #  (300, 1, 59, 5, 6)
 
 # Pick out D, only for amorphous
-Ds = models[0]['D']
+Ds = np.around(models[0]['D'].astype('float64'), 3)
 i = np.zeros(len(Ds), bool)
 for j in range(len(Ds)):
     for D in args.D:
@@ -135,17 +138,10 @@ for j in range(len(Ds)):
 Ds = Ds[i]
 assert any(i), 'Error: None of D={} in {}'.format(args.D, Ds)
 
-#### This is hard coded to assume the first three materials are amorphous and
-#### the last ones are crystalline.  CHANGED BELOW
-#for j in range(3):  # amorphous dust
-#    mfluxd[j] = mfluxd[j][:, :, i]
-#for j in range(3, len(files)):   # crystalline dust
-#    mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2) 
-
 # Given the nature of the IDL save files, amorphous and crystalline materials
-# are treated differently.  But now the order should be irrelevant.
-for j in range(len(files)):
-    if material_classes[j]().mtype.startswith('a'):
+# are treated differently.
+for j, mat in enumerate(materials):
+    if MaterialType.AMORPHOUS in mat.mtype:
         mfluxd[j] = mfluxd[j][:, :, i]  # amorphous dust
     else:
         mfluxd[j] = np.repeat(mfluxd[j], len(Ds), 2) # crystalline dust
@@ -160,64 +156,65 @@ mfluxd = np.array(mfluxd)
 # Pass models to fit to dust.fit_all.
 # mfluxd will be an array with axis order: material, wavelength, D, gsd
 
-#material_names = ('ap', 'ao', 'ac', 'co', 'cp')
-#material_classes = (
-#    dust.AmorphousPyroxene50,
-#    dust.AmorphousOlivine50,
-#    dust.AmorphousCarbon,
-#    dust.HotForsterite95,
-#    dust.HotOrthoEnstatite
-#)
-
-tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
-                   parameter_names=('GSD', 'D'), material_names=args.material_names)
-
+# meta data for all tables
 meta = OrderedDict()
 meta['fit-idl-save.py parameters'] = ' '.join(sys.argv[1:])
 meta['run on'] = time.strftime("%a %b %d %Y %I:%M:%S")
 meta['comet spectrum'] = args.spectrum
-meta['materials included'] = args.material_names
-meta['wavelength unit'] = 'um'
-meta['flux density unit'] = str(args.unit)
+meta['materials included'] = materials_abbrev
 meta['r_h (AU)'] = args.rh
 meta['Delta (AU)'] = args.delta
-tab.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
 
 # Save fit_all results.
-tab.write(filenames['all'], format='ascii.fixed_width_two_line')
+tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
+                   parameter_names=('GSD', 'D'), materials=materials)
+tab.meta = meta
+tab['D'].format = '{:.3f}'
+tab.write(filenames['all'], format='ascii.ecsv')
+
+scale_names = ['s({})'.format(m.abbrev) for m in materials]
 
 # Determine best model, save it.
 i = tab['chisq'].argmin()
-Np = np.array([tab[i][m] for m in args.material_names])
+Np = np.array([tab[i][m] for m in scale_names])
 D = tab[i]['D']
 gsd_name = tab[i]['GSD']
-rchisq = tab[i]['chisq']
-dof = len(wave) - len(args.material_names) - 1
+chisq = tab[i]['chisq']
+dof = len(wave) - len(args.materials) - 1
 
 j, k = np.unravel_index(i, mfluxd.shape[2:]) # indices for best D and GSD
 mfluxd_best = mfluxd[..., j, k]  # pick out best model fluxes
 f = Np[:, np.newaxis] * mfluxd_best  # scale model
-best_model = Table(names=('wave', 'total', ) + args.material_names, data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T)
 
-meta['rchisq'] = rchisq / dof
+meta['rchisq'] = float(chisq / dof)
 meta['dof'] = dof
-meta['GSD'] = gsd_name
+meta['GSD'] = str(gsd_name)
 if gsd_name.startswith('han'):
     N, M = [float(x) for x in gsd_name.split()[1:]]
     gsd = dust.HannerGSD(0.1, N, M)
     meta['a_p'] = '{} um'.format(round(gsd.ap, 1))
-meta['D'] = D 
+meta['D'] = float(D)
 meta['Np'] = OrderedDict()
-Np = np.empty(len(args.material_names))
-for j, m in enumerate(args.material_names):
-    meta['Np'][m] = tab[i][m]
-    Np[j] = tab[i][m]
-best_model.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
+for j, m in enumerate(scale_names):
+    meta['Np'][m] = float(tab[i][m])
 
+fluxd_names = ['F({})'.format(m.abbrev) for m in materials]
+best_model = Table(names=['wave', 'F(total)'] + fluxd_names,
+                   data=np.vstack((mwave[np.newaxis], np.sum(f, axis=0), f)).T,
+                   meta=meta)
+
+# add units and material details to meta data
+best_model['wave'].unit = 'um'
+for i, col in enumerate(best_model.colnames[1:]):
+    best_model[col].unit = str(args.unit)
+    if i == 0:  # first column is total
+        best_model[col].description = 'Total model spectrum'
+    else:  # remaining are materials
+        best_model[col].description = materials[i - 1].name
+    
 best_model.write(filenames['bestmodel'], format='ascii.ecsv')
 
 # Save direct and derived parameters.
-materials = []
 porosity = dust.FractallyPorous(0.1, D)
 if gsd_name.startswith('han'):
     N, M = [float(x) for x in gsd_name.split()[1:]]
@@ -226,33 +223,41 @@ elif gsd_name.startswith('pow'):
     N = float(gsd_name.split()[1])
     gsd = dust.PowerLaw(0.1, N)
 
-for i in range(len(args.material_names)):
-    if args.material_names[i] in ['ap', 'ao', 'ac']:
+grains = []
+for m in materials:
+    if MaterialType.AMORPHOUS in m.mtype:
         # use fractal porosity
-        materials.append(material_classes[i](porosity=porosity, gsd=gsd))
+        grains.append(dust.Grains(m, porosity=porosity, gsd=gsd))
     else:
-        # crystals are solid and do not accept porosity models
-        materials.append(material_classes[i](gsd=gsd))
+        # crystals are solid
+        grains.append(dust.Grains(m, porosity=dust.Solid(), gsd=gsd))
 
 # Save best model results.
-best_results = dust.ModelResults(materials, Np, rchisq, dof)
-best_results.table().write(filenames['best'],
-                           format='ascii.ecsv')
+ratios = OrderedDict()
+ratios['AS'] = ([MaterialType.AMORPHOUS, MaterialType.SILICATE],
+                [MaterialType.DUST])
+ratios['CS'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE],
+                    [MaterialType.DUST])
+ratios['S/C'] = ([MaterialType.SILICATE],
+                 [MaterialType.CARBONACEOUS])
+ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE],
+                [MaterialType.SILICATE])
+best_results = dust.ModelResults(grains, Np, chisq=chisq, dof=dof)
+best_results.table(ratios=ratios).write(filenames['best'], format='ascii.ecsv')
 
 # If args.n > 0, pass to dust.fit_uncertainties.  Save all mcfits.
 if args.n > 0:
     mcall, mcbest = dust.fit_uncertainties(wave, fluxd, unc, mwave,
                                            mfluxd_best, best_results)
-    mcall.table().write(filenames['mcall'],
-                        format='ascii.ecsv')
+    mcall.table().write(filenames['mcall'], format='fits')
     
-    meta['s#, +s#, -s#'] = 'Nps - number of grains at the peak grain size and range for each material'
+    meta['s(#), +s(#), -s(#)'] = 'Nps - number of grains at the peak grain size and range for each material'
     meta['Mtot, +Mtot, -Mtot'] = 'total mass of the submicron sized grains in grams'
-    meta['f#, +f#, -f#'] = 'relative mass of the submicron sized grains and range for each material'
-    meta['r0, +r0, -r0'] = 'sum of the mass of amorphous silicates normalized by the total mass'
-    meta['r1, +r1, -r1'] = 'sum of the mass of crystalline silicates normalized by the total mass'
-    meta['r2, +r2, -r2'] = 'silicate to carbon ratio'
-    meta['r3, +r3, -r3'] = 'mass fraction of crystalline silicates to total silicate mass'
-    mcbest.meta['comments'] = [' = '.join((k, str(v))) for k, v in meta.items()]
-    mcbest.write(filenames['mcbest'],
-                 format='ascii.ecsv')
+    meta['f(#), +f(#), -f(#)'] = 'relative mass of the submicron sized grains and range for each material'
+    meta['AS, +AS, -AS'] = 'Amorphous silicate dust fraction'
+    meta['CS, +CS, -CS'] = 'Crystalline silicate dust fraction'
+    meta['S/C, +S/C, -S/C'] = 'Silicate to carbon ratio'
+    meta['fcryst, +fcryst, -fcryst'] = 'Ratio of crystalline silicate mass to total silicate mass.'
+
+    mcbest.meta = meta
+    mcbest.write(filenames['mcbest'], format='ascii.ecsv')
