@@ -4,7 +4,6 @@ import matplotlib
 import numpy as np
 import astropy.units as u
 from astropy.io import ascii
-from astropy.visualization import quantity_support
 import matplotlib.pyplot as plt
 
 def list_of(type):
@@ -160,8 +159,6 @@ if args.ylog:
 # Plot the data
 ax.plot(wave.value, spec.value, 'ko', markersize=4) # plot data
 ax.plot(wave.value, spec.value, 'w.', markersize=2) # plot data
-
-# quantity_support fails for errorbar
 ax.errorbar(wave.value, spec.value, yerr=unc.value, ecolor='k', fmt='none', capsize=2) # plot error bars
 
 # Set up the colors for the materials in a dictionary
@@ -169,13 +166,12 @@ colors = {'ap': 'blue', 'ap50': 'blue', 'ao': 'cyan', 'ao50': 'cyan', 'ac': 'dar
 
 # Plot the materials
 for i, mats in enumerate(materials):
-    with quantity_support():
-        try:
-            colors[mats]
-        except KeyError:
-            ax.plot(wmodel.value, mcols[i, :].value, color=colors['other'], linestyle=line_dash[i])
-        else:
-            ax.plot(wmodel.value, mcols[i,:].value, color=colors[mats], linestyle=line_dash[i]) 
+    try:
+        colors[mats]
+    except KeyError:
+        ax.plot(wmodel.value, mcols[i, :].value, color=colors['other'], linestyle=line_dash[i])
+    else:
+        ax.plot(wmodel.value, mcols[i,:].value, color=colors[mats], linestyle=line_dash[i]) 
 
 # Plot the total model in red
 ax.plot(wmodel.value, tmodel.value, color='red')
