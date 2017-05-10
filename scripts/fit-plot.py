@@ -61,11 +61,6 @@ if args.unit is None:
         sys.exit()
 else:
     unit = args.unit
-    
-#    i = header['key'] == 'flux density unit'
-#    assert any(i), '--unit not specified and "flux density unit" not found in spectrum table header.'
-#    unit = u.Unit(header[i]['val'][0])
-    
 
 if spectrum['fluxd'].unit:
     wave = u.Quantity(spectrum[args.colspec[0]])
