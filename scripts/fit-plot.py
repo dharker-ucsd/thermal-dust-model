@@ -170,6 +170,9 @@ plt.ylabel(ylabel, fontsize=14, fontweight='bold') #, **hfont)  # set y-axis lab
 # Set axis to log if flagged.
 if args.xlog:
     ax.set_xscale("log", nonposx='clip')
+    f = matplotlib.ticker.FuncFormatter(lambda x, pos: '{:.0f}'.format(x))
+    ax.xaxis.set_major_formatter(f)
+    ax.xaxis.set_minor_formatter(f)
 if args.ylog:
     ax.set_yscale("log", nonposx='clip')
 
@@ -190,9 +193,6 @@ for i, mats in enumerate(materials):
     else:
         ax.plot(wmodel.value, mcols[i,:].value, color=colors[mats], linestyle=line_dash[i]) 
 
-f = matplotlib.ticker.FuncFormatter(lambda x, pos: '{:.0f}'.format(x))
-ax.xaxis.set_major_formatter(f)
-ax.xaxis.set_minor_formatter(f)
 
 # Plot the total model in red
 ax.plot(wmodel.value, tmodel.value, color='red')
