@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import sys
 import argparse
 import matplotlib
 import numpy as np
@@ -52,15 +53,28 @@ if args.yunit.is_equivalent('W/m2'):
 #------------------------------------------------
 spectrum = ascii.read(args.spectrum)
 if args.unit is None:
-    header = ascii.read(spectrum.meta['comments'], delimiter='=',
-                        format='no_header', names=['key', 'val'])
-    i = header['key'] == 'flux density unit'
-    assert any(i), '--unit not specified and "flux density unit" not found in spectrum table header.'
-    unit = u.Unit(header[i]['val'][0])
+    try:
+        unit = u.Unit(spectrum.meta['flux density unit'])
+        pass
+    except KeyError:
+        print('--unit not specified and "flux density unit" not found in spectrum table header.')
+        sys.exit()
+else:
+    unit = args.unit
+    
+#    i = header['key'] == 'flux density unit'
+#    assert any(i), '--unit not specified and "flux density unit" not found in spectrum table header.'
+#    unit = u.Unit(header[i]['val'][0])
+    
 
-wave = spectrum[args.colspec[0]] * u.um
-spec = spectrum[args.colspec[1]] * unit
-unc = spectrum[args.colspec[2]] * unit
+if spectrum['fluxd'].unit:
+    wave = u.Quantity(spectrum[args.colspec[0]])
+    spec = u.Quantity(spectrum[args.colspec[1]])
+    unc = u.Quantity(spectrum[args.colspec[2]])
+else:
+    wave = spectrum[args.colspec[0]] * u.um
+    spec = spectrum[args.colspec[1]] * unit
+    unc = spectrum[args.colspec[2]] * unit
 
 spec = spec.to(args.yunit, u.spectral_density(wave))
 unc = unc.to(args.yunit, u.spectral_density(wave))
@@ -111,6 +125,9 @@ else:
 #------------------------------------------------
 fig = plt.figure(num=1, figsize=[7,7]) # initialize frame and size
 fig.clear()
+
+plt.rc('font', weight='bold') # bold the tick labels NEEDS TO GO BEFORE add_subplot command
+
 ax = fig.add_subplot(111) # full single frame
 
 #hfont = {'fontname':'Helvetica'} # set font to Helvetica
@@ -122,13 +139,16 @@ ax.spines['bottom'].set_linewidth(2)
 ax.spines['left'].set_linewidth(2)
 
 plt.minorticks_on() # turn on minor ticks
-plt.rc('font', weight='bold') # bold the tick labels
+
 plt.rc('xtick', labelsize=14) # set the x-axis tick label size
 plt.rc('ytick', labelsize=14) # set the y-axis tick label size
+ax.tick_params(top='on') # turn on top major ticks
+ax.tick_params(right='on') # turn on right major ticks
+ax.tick_params(axis='x', which='minor', top='on') # turn on top minor ticks
+ax.tick_params(axis='y', which='minor', right='on') # turn on right minor ticks
 plt.tick_params(length=10) # set the length of the major ticks
 plt.tick_params(direction='in',which='minor',length=5) # set the direction and length of the minor ticks
 plt.tick_params(direction='in',which='both',width=2) # set the width of all ticks
-
 
 plt.xlim(args.xlim) # set x-axis limits
 plt.ylim(args.ylim) # set y-axis limits
@@ -175,9 +195,9 @@ for i, mats in enumerate(materials):
     else:
         ax.plot(wmodel.value, mcols[i,:].value, color=colors[mats], linestyle=line_dash[i]) 
 
-ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-ax.xaxis.set_minor_formatter(matplotlib.ticker.ScalarFormatter())
-ax.ticklabel_format(axis='both', fontweight='bold') # bold the tick labels
+f = matplotlib.ticker.FuncFormatter(lambda x, pos: '{:.0f}'.format(x))
+ax.xaxis.set_major_formatter(f)
+ax.xaxis.set_minor_formatter(f)
 
 # Plot the total model in red
 ax.plot(wmodel.value, tmodel.value, color='red')
