@@ -40,6 +40,9 @@ parser.add_argument('--nfn', action='store_true', help='--yunit is νF_ν.')
 parser.add_argument('--unit', type=u.Unit, help='Comet spectrum flux desnity units.  Default is to divine units from the spectrum header.')
 parser.add_argument('--dash', action='store_true', help='Plot the unconstrained materials with a dashed line.  Need the relevant MCBEST file with same prefix as the BESTMODEL file in the same directory.')
 parser.add_argument('--colspec', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
+parser.add_argument('--fscale', type=int, default=7, help='Size of the frame scale factor.  Default=7')
+parser.add_argument('--savefigure', action='store_true', help='Set to write out a PDF file of the figure named "fit-plot-figure-YYYMMDD-HHMMSS.pdf"')
+
 
 args = parser.parse_args()
 
@@ -118,10 +121,12 @@ else:
 #------------------------------------------------
 # We have all the data, so now start the plotting
 #------------------------------------------------
-fig = plt.figure(num=1, figsize=[7,7]) # initialize frame and size
+fig = plt.figure(num=1, figsize=[args.fscale,args.fscale]) # initialize frame and size
 fig.clear()
 
 plt.rc('font', weight='bold') # bold the tick labels NEEDS TO GO BEFORE add_subplot command
+plt.rc('xtick', labelsize=args.fscale*2) # set the x-axis tick label size
+plt.rc('ytick', labelsize=args.fscale*2) # set the y-axis tick label size
 
 ax = fig.add_subplot(111) # full single frame
 
@@ -135,8 +140,6 @@ ax.spines['left'].set_linewidth(2)
 
 plt.minorticks_on() # turn on minor ticks
 
-plt.rc('xtick', labelsize=14) # set the x-axis tick label size
-plt.rc('ytick', labelsize=14) # set the y-axis tick label size
 ax.tick_params(top='on') # turn on top major ticks
 ax.tick_params(right='on') # turn on right major ticks
 ax.tick_params(axis='x', which='minor', top='on') # turn on top minor ticks
@@ -149,7 +152,7 @@ plt.xlim(args.xlim) # set x-axis limits
 plt.ylim(args.ylim) # set y-axis limits
 
 # Define the axis labels
-plt.xlabel('Wavelength ($\mu$m)', fontsize=14, fontweight='bold') #, **hfont) # set x-axis label
+plt.xlabel('Wavelength ($\mu$m)', fontsize=args.fscale*2, fontweight='bold') #, **hfont) # set x-axis label
 
 if args.lfl:
     ylabel = r'$\lambda F_\lambda$ ({})'
@@ -165,7 +168,7 @@ ylabel = ylabel.format(args.yunit.to_string('latex_inline'))
 # ugly hack to fix unit order  :(  Need to fix in astropy.units.format.latex
 ylabel = ylabel.replace('\\mu m^{-1}\\,cm^{-2}', 'cm^{-2}\\,\\mu m^{-1}')
 ylabel = ylabel.replace('\\mu m^{-1}\\,m^{-2}', 'm^{-2}\\,\\mu m^{-1}')
-plt.ylabel(ylabel, fontsize=14, fontweight='bold') #, **hfont)  # set y-axis label 
+plt.ylabel(ylabel, fontsize=args.fscale*2, fontweight='bold') #, **hfont)  # set y-axis label 
 
 # Set axis to log if flagged.
 if args.xlog:
@@ -200,4 +203,6 @@ plt.tight_layout()
 plt.draw()
 plt.show()
 
-
+# If chosen, write out PDF file
+if args.savefigure:
+    fig.savefig("fit-plot-figure-{}.pdf".format(time.strftime('%Y%m%d-%I%M%S')), dpi=300, bbox_inches='tight')
