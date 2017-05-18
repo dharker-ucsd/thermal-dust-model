@@ -52,7 +52,7 @@ $D$: {D}""".format(**best.meta)
 def param_distribution(ax, py, px, bins, range=None):
     h, edges = np.histogramdd(np.c_[py, px], bins=bins, range=range)
     extent = (edges[1][0], edges[1][-1], edges[0][0], edges[0][-1])
-    ax.imshow(h, extent=extent)
+    ax.imshow(h, extent=extent, origin='lower')
 
 parser = argparse.ArgumentParser(description='Plot parameter correlations based on Monte Carlo fitting.')
 parser.add_argument('mcall', help='Name of the file with the Monte Carlo simulations.')
