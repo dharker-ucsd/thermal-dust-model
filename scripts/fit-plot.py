@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import sys
+import time
 import argparse
 import matplotlib
 import numpy as np
@@ -199,10 +200,12 @@ for i, mats in enumerate(materials):
 
 # Plot the total model in red
 ax.plot(wmodel.value, tmodel.value, color='red')
+
 plt.tight_layout()
 plt.draw()
-plt.show()
 
 # If chosen, write out PDF file
 if args.savefigure:
     fig.savefig("fit-plot-figure-{}.pdf".format(time.strftime('%Y%m%d-%I%M%S')), dpi=300, bbox_inches='tight')
+else:
+    plt.show()
