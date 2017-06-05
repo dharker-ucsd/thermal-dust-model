@@ -1,10 +1,13 @@
 #!/usr/bin/python3
+import sys
+import time
 import argparse
 import matplotlib
 import numpy as np
 import astropy.units as u
 from astropy.io import ascii
 import matplotlib.pyplot as plt
+import matplotlib
 
 def list_of(type):
     """Return a fuction that will split a string into a list of `type` objects.
@@ -38,6 +41,9 @@ parser.add_argument('--nfn', action='store_true', help='--yunit is νF_ν.')
 parser.add_argument('--unit', type=u.Unit, help='Comet spectrum flux desnity units.  Default is to divine units from the spectrum header.')
 parser.add_argument('--dash', action='store_true', help='Plot the unconstrained materials with a dashed line.  Need the relevant MCBEST file with same prefix as the BESTMODEL file in the same directory.')
 parser.add_argument('--colspec', type=list_of(str), default='wave,fluxd,unc', help='Comet spectrum column names for the wavelength, spectral values, and uncertainties.  Default="wave,fluxd,unc".')
+parser.add_argument('--fscale', type=int, default=7, help='Size of the frame scale factor.  Default=7')
+parser.add_argument('--savefigure', action='store_true', help='Set to write out a PDF file of the figure named "fit-plot-figure-YYYMMDD-HHMMSS.pdf"')
+
 
 args = parser.parse_args()
 
@@ -51,15 +57,23 @@ if args.yunit.is_equivalent('W/m2'):
 #------------------------------------------------
 spectrum = ascii.read(args.spectrum)
 if args.unit is None:
-    header = ascii.read(spectrum.meta['comments'], delimiter='=',
-                        format='no_header', names=['key', 'val'])
-    i = header['key'] == 'flux density unit'
-    assert any(i), '--unit not specified and "flux density unit" not found in spectrum table header.'
-    unit = u.Unit(header[i]['val'][0])
+    try:
+        unit = u.Unit(spectrum.meta['flux density unit'])
+        pass
+    except KeyError:
+        print('--unit not specified and "flux density unit" not found in spectrum table header.')
+        sys.exit()
+else:
+    unit = args.unit
 
-wave = spectrum[args.colspec[0]] * u.um
-spec = spectrum[args.colspec[1]] * unit
-unc = spectrum[args.colspec[2]] * unit
+if spectrum['fluxd'].unit:
+    wave = u.Quantity(spectrum[args.colspec[0]])
+    spec = u.Quantity(spectrum[args.colspec[1]])
+    unc = u.Quantity(spectrum[args.colspec[2]])
+else:
+    wave = spectrum[args.colspec[0]] * u.um
+    spec = spectrum[args.colspec[1]] * unit
+    unc = spectrum[args.colspec[2]] * unit
 
 spec = spec.to(args.yunit, u.spectral_density(wave))
 unc = unc.to(args.yunit, u.spectral_density(wave))
@@ -94,9 +108,9 @@ if args.dash:
         line_dash = ["solid" for x in range(len(materials))]
     else:
         line_dash = []
-        for i in range(len(materials)):
-            num = float(np_table['s{}'.format(i)]) 
-            mnum = float(-np_table['-s{}'.format(i)]) 
+        for m in materials:
+            num = float(np_table['s({})'.format(m)]) 
+            mnum = float(-np_table['-s({})'.format(m)]) 
             if num + mnum == 0:
                 line_dash += ['dashed']
             else:
@@ -104,11 +118,17 @@ if args.dash:
 else:
     line_dash = ["solid" for x in range(len(materials))]
 
+
 #------------------------------------------------
 # We have all the data, so now start the plotting
 #------------------------------------------------
-fig = plt.figure(num=1, figsize=[7,7]) # initialize frame and size
+fig = plt.figure(num=1, figsize=[args.fscale,args.fscale]) # initialize frame and size
 fig.clear()
+
+plt.rc('font', weight='bold') # bold the tick labels NEEDS TO GO BEFORE add_subplot command
+plt.rc('xtick', labelsize=args.fscale*2) # set the x-axis tick label size
+plt.rc('ytick', labelsize=args.fscale*2) # set the y-axis tick label size
+
 ax = fig.add_subplot(111) # full single frame
 
 #hfont = {'fontname':'Helvetica'} # set font to Helvetica
@@ -120,19 +140,20 @@ ax.spines['bottom'].set_linewidth(2)
 ax.spines['left'].set_linewidth(2)
 
 plt.minorticks_on() # turn on minor ticks
-plt.rc('font', weight='bold') # bold the tick labels
-plt.rc('xtick', labelsize=14) # set the x-axis tick label size
-plt.rc('ytick', labelsize=14) # set the y-axis tick label size
+
+ax.tick_params(top='on') # turn on top major ticks
+ax.tick_params(right='on') # turn on right major ticks
+ax.tick_params(axis='x', which='minor', top='on') # turn on top minor ticks
+ax.tick_params(axis='y', which='minor', right='on') # turn on right minor ticks
 plt.tick_params(length=10) # set the length of the major ticks
 plt.tick_params(direction='in',which='minor',length=5) # set the direction and length of the minor ticks
 plt.tick_params(direction='in',which='both',width=2) # set the width of all ticks
-plt.ticklabel_format(axis='both', fontweight='bold') # bold the tock labels
 
 plt.xlim(args.xlim) # set x-axis limits
 plt.ylim(args.ylim) # set y-axis limits
 
 # Define the axis labels
-plt.xlabel('Wavelength ($\mu$m)', fontsize=14, fontweight='bold') #, **hfont) # set x-axis label
+plt.xlabel('Wavelength ($\mu$m)', fontsize=args.fscale*2, fontweight='bold') #, **hfont) # set x-axis label
 
 if args.lfl:
     ylabel = r'$\lambda F_\lambda$ ({})'
@@ -148,11 +169,14 @@ ylabel = ylabel.format(args.yunit.to_string('latex_inline'))
 # ugly hack to fix unit order  :(  Need to fix in astropy.units.format.latex
 ylabel = ylabel.replace('\\mu m^{-1}\\,cm^{-2}', 'cm^{-2}\\,\\mu m^{-1}')
 ylabel = ylabel.replace('\\mu m^{-1}\\,m^{-2}', 'm^{-2}\\,\\mu m^{-1}')
-plt.ylabel(ylabel, fontsize=14, fontweight='bold') #, **hfont)  # set y-axis label 
+plt.ylabel(ylabel, fontsize=args.fscale*2, fontweight='bold') #, **hfont)  # set y-axis label 
 
 # Set axis to log if flagged.
 if args.xlog:
     ax.set_xscale("log", nonposx='clip')
+    f = matplotlib.ticker.FuncFormatter(lambda x, pos: '{:.0f}'.format(x))
+    ax.xaxis.set_major_formatter(f)
+    ax.xaxis.set_minor_formatter(f)
 if args.ylog:
     ax.set_yscale("log", nonposx='clip')
 
@@ -173,10 +197,15 @@ for i, mats in enumerate(materials):
     else:
         ax.plot(wmodel.value, mcols[i,:].value, color=colors[mats], linestyle=line_dash[i]) 
 
+
 # Plot the total model in red
 ax.plot(wmodel.value, tmodel.value, color='red')
+
 plt.tight_layout()
 plt.draw()
-plt.show()
 
-
+# If chosen, write out PDF file
+if args.savefigure:
+    fig.savefig("fit-plot-figure-{}.pdf".format(time.strftime('%Y%m%d-%I%M%S')), dpi=300, bbox_inches='tight')
+else:
+    plt.show()
