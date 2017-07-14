@@ -214,8 +214,11 @@ class ModelResults:
 
         return f
 
-class ModelSpectrum:
-    """Model spectrum.
+class ModelSpectra:
+    """Model spectra.
+
+    Use `ModelSpectra` to hold the model spectra of a set of
+    materials.
 
     Parameters
     ----------
