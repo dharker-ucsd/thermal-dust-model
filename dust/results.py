@@ -257,7 +257,7 @@ class ModelSpectra:
 
     def __getitem__(self, k):
         import astropy.units as u
-        if k == 'total' and 'total' not in self.table:
+        if k == 'total' and 'total' not in [c.lower() for c in self.table.colnames]:
             t = 0
             for col in self.table.colnames:
                 if col == 'wave':
