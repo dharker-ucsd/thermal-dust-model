@@ -97,7 +97,7 @@ materials_abbrev = [m.abbrev for m in materials]
 models = [idl.readsav(os.sep.join((dust._config['fit-idl-save']['path'], f))) for f in files]
 mwave = models[0]['wave_f']
 delta = args.delta * const.au.to('cm').value
-conv = delta**-2 * u.Unit('W/(cm2 um)').to(args.unit, 1.0, u.spectral_density(mwave * u.um))
+conv = u.Unit('W/(cm2 um)').to(args.unit, 1.0, u.spectral_density(mwave * u.um))
 mfluxd = [m['flux'] * conv for m in models]  # unitless but scaled to units of args.unit
 
 # Pick out rh
@@ -165,18 +165,25 @@ meta['materials included'] = materials_abbrev
 meta['r_h (AU)'] = args.rh
 meta['Delta (AU)'] = args.delta
 
-# Save fit_all results.
+# fit_all results.
 tab = dust.fit_all(wave, fluxd, unc, mwave, mfluxd, (gsds, Ds),
                    parameter_names=('GSD', 'D'), materials=materials)
+
+scale_names = ['s({})'.format(m.abbrev) for m in materials]
+
+# factor in delta scale factor for saved tables, but not for in-memory Np
+Np = np.array([tab[m] for m in scale_names])
+for col in scale_names:
+    tab[col] *= delta**2
+
+# Save fit_all results.
 tab.meta = meta
 tab['D'].format = '{:.3f}'
 tab.write(filenames['all'], format='ascii.ecsv')
 
-scale_names = ['s({})'.format(m.abbrev) for m in materials]
-
 # Determine best model, save it.
 i = tab['chisq'].argmin()
-Np = np.array([tab[i][m] for m in scale_names])
+Np = np.array([Np[m][i] for m in range(len(Np))])
 D = tab[i]['D']
 gsd_name = tab[i]['GSD']
 chisq = tab[i]['chisq']
@@ -196,7 +203,7 @@ if gsd_name.startswith('han'):
 meta['D'] = float(D)
 meta['Np'] = OrderedDict()
 for j, m in enumerate(scale_names):
-    meta['Np'][m] = float(tab[i][m])
+    meta['Np'][m] = float(tab[i][m]) * delta**2
 
 fluxd_names = ['F({})'.format(m.abbrev) for m in materials]
 best_model = Table(names=['wave', 'F(total)'] + fluxd_names,
@@ -242,15 +249,26 @@ ratios['S/C'] = ([MaterialType.SILICATE],
                  [MaterialType.CARBONACEOUS])
 ratios['fcryst'] = ([MaterialType.CRYSTALLINE, MaterialType.SILICATE],
                 [MaterialType.SILICATE])
-best_results = dust.ModelResults(grains, Np, chisq=chisq, dof=dof)
+best_results = dust.ModelResults(grains, Np * delta**2, chisq=chisq, dof=dof)
 best_results.table(ratios=ratios).write(filenames['best'], format='ascii.ecsv')
 
 # If args.n > 0, pass to dust.fit_uncertainties.  Save all mcfits.
 if args.n > 0:
-    mcall, mcbest = dust.fit_uncertainties(wave, fluxd, unc, mwave,
-                                           mfluxd_best, best_results)
+    # Need unscaled Nps here
+    best_results_unscaled = dust.ModelResults(grains, Np, chisq=chisq, dof=dof)
+    mcall, mcbest = dust.fit_uncertainties(
+        wave, fluxd, unc, mwave, mfluxd_best, best_results_unscaled)
+
+    # Incorporate delta scaling factor
+    mcall.scales *= delta**2
+    for pfx in ['', '+', '-']:
+        for s in scale_names + ['Mtot']:
+            mcbest[pfx + s] *= delta**2
+
+    # save all fits to FITS
     mcall.table().write(filenames['mcall'], format='fits')
-    
+
+    # summarize MCFITS
     meta['s(#), +s(#), -s(#)'] = 'Nps - number of grains at the peak grain size and range for each material'
     meta['Mtot, +Mtot, -Mtot'] = 'total mass of the submicron sized grains in grams'
     meta['f(#), +f(#), -f(#)'] = 'relative mass of the submicron sized grains and range for each material'
