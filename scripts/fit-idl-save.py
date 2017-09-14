@@ -254,10 +254,21 @@ best_results.table(ratios=ratios).write(filenames['best'], format='ascii.ecsv')
 
 # If args.n > 0, pass to dust.fit_uncertainties.  Save all mcfits.
 if args.n > 0:
-    mcall, mcbest = dust.fit_uncertainties(wave, fluxd, unc, mwave,
-                                           mfluxd_best, best_results)
+    # Need unscaled Nps here
+    best_results_unscaled = dust.ModelResults(grains, Np, chisq=chisq, dof=dof)
+    mcall, mcbest = dust.fit_uncertainties(
+        wave, fluxd, unc, mwave, mfluxd_best, best_results_unscaled)
+
+    # Incorporate delta scaling factor
+    mcall.scales *= delta**2
+    for s in scale_names:
+        for pfx in ['', '+', '-']:
+            mcbest[pfx + s] *= delta**2
+
+    # save all fits to FITS
     mcall.table().write(filenames['mcall'], format='fits')
-    
+
+    # summarize MCFITS
     meta['s(#), +s(#), -s(#)'] = 'Nps - number of grains at the peak grain size and range for each material'
     meta['Mtot, +Mtot, -Mtot'] = 'total mass of the submicron sized grains in grams'
     meta['f(#), +f(#), -f(#)'] = 'relative mass of the submicron sized grains and range for each material'
