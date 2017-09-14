@@ -261,8 +261,9 @@ if args.n > 0:
 
     # Incorporate delta scaling factor
     mcall.scales *= delta**2
-    for s in scale_names:
-        for pfx in ['', '+', '-']:
+    
+    for pfx in ['', '+', '-']:
+        for s in scale_names + ['Mtot']:
             mcbest[pfx + s] *= delta**2
 
     # save all fits to FITS
