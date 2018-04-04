@@ -213,3 +213,136 @@ class ModelResults:
             f = (m.T / m.sum(-1)).T
 
         return f
+
+class ModelSpectra:
+    """Model spectra.
+
+    Use `ModelSpectra` to hold the model spectra of a set of
+    materials.
+
+    Parameters
+    ----------
+    wave : Quantity
+      The spectral wavelengths.
+    fluxd : array of (key, value) pairs
+      Key-value pairs providing the material name (key) and the flux
+      density at each `wave` (value : Quantity).
+    meta : dictionary-like, optional
+      Meta data for the spectrum.
+
+    """
+
+    default_colors = {
+        'ap': 'blue',
+        'ap50': 'blue',
+        'ao': 'cyan',
+        'ao50': 'cyan',
+        'ac': 'darkorange',
+        'co': 'green',
+        'cp': 'magenta',
+        'total': 'red',
+        'other': 'black'
+    }
+
+    def __init__(self, wave, fluxd, meta=None):
+        from collections import OrderedDict
+        from astropy.table import Table
+        import astropy.units as u
+
+        self.meta = meta if meta is not None else OrderedDict()
+
+        self.table = Table(names=['wave'] + [k for k, v in fluxd],
+                           data=[wave] + [v for k, v in fluxd])
+        self.table.meta = meta if meta is not None else OrderedDict()
+
+    def __getitem__(self, k):
+        import astropy.units as u
+        if k == 'total' and 'total' not in [c.lower() for c in self.table.colnames]:
+            t = 0
+            for col in self.table.colnames:
+                if col == 'wave':
+                    continue
+                t += u.Quantity(self.table[col].data, self.table[col].unit)
+            return t
+        else:
+            return u.Quantity(self.table[k].data, self.table[k].unit)
+
+    @property
+    def materials(self):
+        return [k for k in self.table.colnames if k not in ['wave', 'total']]
+
+    @classmethod
+    def from_fitidlsave(cls, filename):
+        """Read model spectra from a fit-idl-save file."""
+
+        from astropy.io import ascii
+        import astropy.units as u
+
+        tab = ascii.read(filename)
+        wave = u.Quantity(tab['wave'], tab['wave'].unit)
+        fluxd = []
+        for col in tab.colnames:
+            if col == 'wave':
+                continue
+            f = u.Quantity(tab[col], tab[col].unit)
+            fluxd.append((col[2:-1], f))
+
+        return cls(wave, fluxd, meta=tab.meta)
+
+    def plot(self, ax=None, materials=None, unconstrained=None, colors=None,
+             wunit='um', unit=None, total=True):
+        """Plot spectra.
+
+        Parameters
+        ----------
+        ax : matplotlib Axis, optional
+          Plot to this matplotlib axis.
+        materials : list, optional
+          Only plot these materials.
+        unconstrained : list, optional
+          These materials are not detected, but should be plot with a
+          dashed line.
+        colors : dict, optional
+          `(material, color)` pairs.
+        wunit : str or astropy Unit
+          Convert wavelength this unit.
+        unit : str or astropy Unit, optional
+          Convert flux density to this unit.
+        total : bool, optional
+          Set to `True` to also plot the total.
+
+        Returns
+        -------
+        lines : list
+          The results from `ax.plot`.
+
+        """
+
+        import matplotlib.pyplot as plt
+        import astropy.units as u
+        
+        ax = ax if ax is not None else plt.gca()
+        colors = {} if colors is None else colors
+        materials = self.materials if materials is None else materials
+        unconstrained = [] if unconstrained is None else unconstrained
+
+        w = self['wave'].to(wunit)
+        lines = []
+        for k in materials:
+            color = colors.get(k, self.default_colors.get(k, self.default_colors['other']))
+            ls = 'dashed' if k in unconstrained else 'solid'
+            if unit is None:
+                f = self[k]
+            else:
+                f = self[k].to(unit, u.spectral_density(w))
+            lines.append(ax.plot(w, f, color=color, ls=ls))
+
+        if total:
+            color = colors.get('total', self.default_colors['total'])
+            if unit is None:
+                f = self['total']
+            else:
+                f = self['total'].to(unit, u.spectral_density(w))
+            lines.append(ax.plot(w, f, color=color))
+            
+        return lines
