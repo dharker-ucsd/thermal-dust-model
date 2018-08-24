@@ -144,10 +144,14 @@ ax.spines['left'].set_linewidth(2)
 
 plt.minorticks_on() # turn on minor ticks
 
-ax.tick_params(top='on') # turn on top major ticks
-ax.tick_params(right='on') # turn on right major ticks
-ax.tick_params(axis='x', which='minor', top='on') # turn on top minor ticks
-ax.tick_params(axis='y', which='minor', right='on') # turn on right minor ticks
+#ax.tick_params(top='on') # turn on top major ticks
+#ax.tick_params(right='on') # turn on right major ticks
+#ax.tick_params(axis='x', which='minor', top='on') # turn on top minor ticks
+#ax.tick_params(axis='y', which='minor', right='on') # turn on right minor ticks
+ax.tick_params(top=True) # turn on top major ticks
+ax.tick_params(right=True) # turn on right major ticks
+ax.tick_params(axis='x', which='minor', top=True) # turn on top minor ticks
+ax.tick_params(axis='y', which='minor', right=True) # turn on right minor ticks
 plt.tick_params(length=15) # set the length of the major ticks
 plt.tick_params(direction='in',which='minor',length=8) # set the direction and length of the minor ticks
 plt.tick_params(direction='in',which='both',width=2) # set the width of all ticks
@@ -181,7 +185,7 @@ if args.xlog:
     ax.xaxis.set_major_formatter(f)
     ax.xaxis.set_minor_formatter(f)
 if args.ylog:
-    ax.set_yscale("log", nonposx='clip')
+    ax.set_yscale("log")#, nonposx='clip')
 
 # Annotate if desired
 if args.annotate != None:
