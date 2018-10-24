@@ -154,7 +154,10 @@ class ModelResults:
                     if all([m in g.material.mtype for m in equation[1]]):
                         denominator = denominator + f[..., j]
 
-                tab[name] = numerator / denominator
+                try:
+                    tab[name] = numerator / denominator
+                except ZeroDivisionError:
+                    tab[name] = 0.
 
                 numerator_names = [x.value for x in equation[0]]
                 denominator_names = [x.value for x in equation[1]]
