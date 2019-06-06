@@ -157,7 +157,7 @@ class ModelResults:
                 try:
                     tab[name] = numerator / denominator
                 except ZeroDivisionError:
-                    tab[name] = 0.
+                    tab[name] = -1
 
                 numerator_names = [x.value for x in equation[0]]
                 denominator_names = [x.value for x in equation[1]]
