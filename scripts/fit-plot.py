@@ -46,6 +46,7 @@ parser.add_argument('--fscale', type=int, default=5, help='Size of the frame sca
 parser.add_argument('--savefigure', action='store_true', help='Set to write out a PDF file of the figure named "fit-plot-figure-YYYMMDD-HHMMSS.pdf"')
 parser.add_argument('--savetofile', type=str, default='', help='Set to write out a PDF file of the figure named "fit-plot-figure-YYYMMDD-HHMMSS.pdf"')
 parser.add_argument('--annotate', type=list_of(str), help='Place text in upper left corner of each plot.')
+parser.add_argument('--tofitdata', help='Subset of data points used in the model fit.')
 
 
 args = parser.parse_args()
@@ -80,6 +81,34 @@ else:
 
 spec = spec.to(args.yunit, u.spectral_density(wave))
 unc = unc.to(args.yunit, u.spectral_density(wave))
+
+#------------------------------------------------
+# Set up TOFIT comet spectrum
+#------------------------------------------------
+
+if args.tofitdata:
+    tofit = ascii.read(args.tofitdata)
+    if args.unit is None:
+        try:
+            unit = u.Unit(tofit.meta['flux density unit'])
+            pass
+        except KeyError:
+            print('--unit not specified and "flux density unit" not found in spectrum table header.')
+            sys.exit()
+    else:
+        unit = args.unit
+
+    if tofit['fluxd'].unit:
+        wtofit = u.Quantity(tofit[args.colspec[0]])
+        stofit = u.Quantity(tofit[args.colspec[1]])
+        utofit = u.Quantity(tofit[args.colspec[2]])
+    else:
+        wtofit = tofit[args.colspec[0]] * u.um
+        stofit = tofit[args.colspec[1]] * unit
+        utofit = tofit[args.colspec[2]] * unit
+
+    stofit = stofit.to(args.yunit, u.spectral_density(wtofit))
+    utofit = utofit.to(args.yunit, u.spectral_density(wtofit))
 
 #------------------------------------------------
 # Set up model spectra
@@ -196,6 +225,10 @@ ax.plot(wave.value, spec.value, 'ko', markersize=4) # plot data
 ax.plot(wave.value, spec.value, 'w.', markersize=2) # plot data
 ax.errorbar(wave.value, spec.value, yerr=unc.value, ecolor='k', fmt='none', capsize=2) # plot error bars
 
+# Plot the TOFIT data if provided
+if args.tofitdata:
+    ax.plot(wtofit.value, stofit.value, 'go', markersize=4) # plot TOFIT data
+
 # Set up the colors for the materials in a dictionary
 colors = {'ap': 'blue', 'ap50': 'blue', 'ao': 'cyan', 'ao50': 'cyan', 'ac': 'darkorange', 'co': 'green', 'cp': 'magenta', 'other': 'black'}
 
@@ -222,6 +255,6 @@ if args.savefigure:
     else:
         if os.path.exists(args.savetofile):
             os.unlink(args.savetofile)
-        fig.savefig(args.savetofile, dpi=300, bbox_inches='tight')
+        fig.savefig(args.savetofile, dpi=1200, bbox_inches='tight')
 else:
     plt.show()
