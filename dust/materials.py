@@ -249,7 +249,7 @@ amorphous_pyroxene50 = Material(
     (MaterialType.AMORPHOUS, MaterialType.SILICATE, MaterialType.DUST))
 
 amorphous_carbon = Material(
-    'Amorphous carbon', 'ac', 2.5,
+    'Amorphous carbon', 'ac', 1.8,
     (MaterialType.AMORPHOUS, MaterialType.CARBONACEOUS, MaterialType.DUST))
 
 hot_forsterite95 = Material(
@@ -320,7 +320,7 @@ class Grains:
         
         log_arange = np.log10(arange)
         n = max(log_arange.ptp(), 1) * 10000
-        a = np.logspace(log_arange[0], log_arange[1], n)
+        a = np.logspace(log_arange[0], log_arange[1], int(n))
         dmda = self.gsd(a) * self.mass(a)
         
         return avint(a, dmda, arange)
