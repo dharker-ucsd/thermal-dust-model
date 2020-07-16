@@ -248,8 +248,9 @@ amorphous_pyroxene50 = Material(
     'Amorphous pyroxene Mg/Fe 50/50', 'ap50', 3.3,
     (MaterialType.AMORPHOUS, MaterialType.SILICATE, MaterialType.DUST))
 
+# References: indices of refractions - Edoh (1983); density - Williams and Arakawa (1972)
 amorphous_carbon = Material(
-    'Amorphous carbon', 'ac', 1.8,
+    'Amorphous carbon', 'ac', 1.5,
     (MaterialType.AMORPHOUS, MaterialType.CARBONACEOUS, MaterialType.DUST))
 
 hot_forsterite95 = Material(
