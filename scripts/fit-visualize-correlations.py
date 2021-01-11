@@ -37,13 +37,16 @@ def plot_columns(fignum, tab, colnames, bins=None, best=None, image=True,
         d = kwargs['range']
     del kwargs['range']
 
+    #xcolnames = colnames[:n]
+    #ycolnames = colnames[:n - 1][::-1] + colnames[-1:]
+
     for x in range(n):
         for y in range(n):
             if x > y:
                 fig.delaxes(axes[y, x])
                 continue
 
-            coly = colnames[y]
+            coly = colnames[y + 1]
             colx = colnames[x]
 
             param_distribution(axes[y, x], tab[coly],
@@ -70,7 +73,7 @@ def plot_columns(fignum, tab, colnames, bins=None, best=None, image=True,
 
         s = ("""{title}
 $r_\\mathrm{{h}}$ = {r_h (AU)} au
-$\\Delta$ = {Delta (AU)} au
+$\\Delta$ = {Delta (AU):.1g} au
 $\\chi^2_\\nu$ = {rchisq:.2f}
 $a_p$ = {a_p}
 $N$ = {N}
@@ -119,7 +122,7 @@ parser.add_argument('--no-image', action='store_false',
 parser.add_argument(
     '--title', help="use this title instead of file name, date, and materials")
 parser.add_argument('--range', help='use this range for all axes')
-parser.add_argument('--parameters', default='f(ao50),f(ap50),f(ac),AS,CS',
+parser.add_argument('--parameters', default='f(ao50),f(ap50),AS,CS,f(ac)',
                     help='plot these parameters, comma-separated')
 
 args = parser.parse_args()
