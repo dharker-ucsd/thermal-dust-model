@@ -67,6 +67,13 @@ class TestHannerGSD:
         gsd = util.hanner_gsd(ap, a0, N, M)
         assert np.isclose(gsd, 1.0)
 
+    def test_M(self):
+        a0, N, ap = 0.1, 3.7, 1.1
+        M = util.hanner_M(a0, N, ap)
+        assert np.isclose(M, 37)
+        gsd = util.hanner_gsd(ap, a0, N, M)
+        assert np.isclose(gsd, 1.0)
+
 
 class TestPowerLaw:
     def test_value(self):

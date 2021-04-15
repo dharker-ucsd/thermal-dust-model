@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 import numpy as np
+from . import util
 
 __all__ = [
     'Solid',
@@ -18,6 +19,7 @@ __all__ = [
     'Grains',
 ]
 
+
 class PorosityModel(ABC):
     """Abstract base class for porosity models.
 
@@ -31,11 +33,13 @@ class PorosityModel(ABC):
         """Porosity, i.e., vacuum fraction, for grain size `a`."""
         pass
 
+
 class Solid(PorosityModel):
     """Solid dust."""
+
     def __init__(self):
         pass
-    
+
     def __call__(self, a):
         """Porosity, i.e., vacuum fraction, for grain size `a`.
 
@@ -46,6 +50,7 @@ class Solid(PorosityModel):
 
         """
         return np.zeros_like(a)
+
 
 class FractallyPorous(PorosityModel):
     """Fractally porous dust.
@@ -59,10 +64,11 @@ class FractallyPorous(PorosityModel):
       Fractal dimension.  Must be `0 <= D <= 3.0`.
 
     """
+
     def __init__(self, a0, D):
         self.a0 = a0
         self.D = D
-    
+
     def __call__(self, a):
         """Porosity, i.e., vacuum fraction, for grain size `a`.
 
@@ -74,6 +80,7 @@ class FractallyPorous(PorosityModel):
         """
         return 1 - (a / self.a0)**(self.D - 3)
 
+
 class ConstantPorosity(PorosityModel):
     """Uniform porosity for all grain sizes.
 
@@ -83,9 +90,10 @@ class ConstantPorosity(PorosityModel):
       The porosity to use for all grain sizes.
 
     """
+
     def __init__(self, p):
         self.p = p
-    
+
     def __call__(self, a):
         """Porosity, i.e., vacuum fraction, for grain size `a`.
 
@@ -97,6 +105,7 @@ class ConstantPorosity(PorosityModel):
         """
         return self.p * np.ones_like(a)
 
+
 class GrainSizeDistribution(ABC):
     """Abstract base class for differential grain size distributions.
 
@@ -104,6 +113,7 @@ class GrainSizeDistribution(ABC):
     Derived objects must define the `__call__` method.
 
     """
+
     def __init__(self, alim=[0, np.inf]):
         self.alim = alim
 
@@ -128,12 +138,13 @@ class GrainSizeDistribution(ABC):
     def _n(self, a):
         """Differential grain size distribution relative fraction for grain size `a`."""
         pass
-        
+
+
 class HannerGSD(GrainSizeDistribution):
     """Hanner (modified power law) differential grain size distribution.
 
     The HannerGSD is normalized by the peak of the GSD curve.
-    
+
       `dn/da = (1 - a0 / a)**M * (a0 / a)**N`
 
     Parameters
@@ -149,17 +160,23 @@ class HannerGSD(GrainSizeDistribution):
       Upper and lower grain radii in microns
 
     """
-    def __init__(self, a0, N, M, alim=[0.1,100]):
+
+    def __init__(self, a0, N, M, alim=[0.1, 100]):
         self.a0 = a0
         self.N = N
         self.M = M
         self.alim = alim
 
+    @classmethod
+    def from_ap(cls, a0, N, ap, **kwargs):
+        """Initialize with ap instead of M."""
+        M = util.hanner_M(a0, N, ap)
+        return cls(a0, N, M, **kwargs)
+
     @property
     def ap(self):
         """Peak of the GSD."""
-        from .util import hanner_ap
-        return hanner_ap(self.a0, self.N, self.M)
+        return util.hanner_ap(self.a0, self.N, self.M)
 
     def _n(self, a):
         """GSD, i.e., relative amount, for grain size `a`.
@@ -170,16 +187,16 @@ class HannerGSD(GrainSizeDistribution):
           Grain radius in μm.
 
         """
-        from .util import hanner_gsd
-        return hanner_gsd(a, self.a0, self.N, self.M)
-        
+        return util.hanner_gsd(a, self.a0, self.N, self.M)
+
+
 class PowerLaw(GrainSizeDistribution):
     """Power Law differential grain size distribution.
 
     The GSD is normalized by the smallest grain size.
 
       `dn/da = (a0 / a)**powlaw`
-    
+
     Parameters
     ----------
     a0 : float
@@ -192,11 +209,12 @@ class PowerLaw(GrainSizeDistribution):
       Upper and lower grain radii in microns
 
     """
-    def __init__(self, a0, powlaw, alim=[0.1,100]):
+
+    def __init__(self, a0, powlaw, alim=[0.1, 100]):
         self.a0 = a0
         self.powlaw = powlaw
         self.alim = alim
-    
+
     def _n(self, a):
         """GSD, i.e., relative amount, for grain size `a`.
 
@@ -206,8 +224,8 @@ class PowerLaw(GrainSizeDistribution):
           Grain radius in μm.
 
         """
-        from .util import power_law
-        return power_law(a, self.a0, self.powlaw)
+        return util.power_law(a, self.a0, self.powlaw)
+
 
 class MaterialType(Enum):
     AMORPHOUS = 'amorphous'
@@ -216,7 +234,8 @@ class MaterialType(Enum):
     CARBONACEOUS = 'carbonaceous'
     DUST = 'dust'
     ICE = 'ice'
-    
+
+
 class Material:
     """Bulk material properties.
 
@@ -230,7 +249,7 @@ class Material:
       The bulk material density in g/cm3.
     mtype : tuple of MaterialTypes, optional
       Type of material.
-    
+
     """
 
     def __init__(self, name, abbrev, rho0, mtype=None):
@@ -239,6 +258,7 @@ class Material:
         self.rho0 = rho0
         assert isinstance(mtype, (list, tuple))
         self.mtype = tuple() if mtype is None else tuple(mtype)
+
 
 amorphous_olivine50 = Material(
     'Amorphous olivine Mg/Fe 50/50', 'ao50', 3.3,
@@ -261,6 +281,7 @@ hot_ortho_enstatite = Material(
     'Hot ortho-enstatite', 'cp', 3.3,
     (MaterialType.CRYSTALLINE, MaterialType.SILICATE, MaterialType.DUST))
 
+
 class Grains:
     """A grain, or collection thereof.
 
@@ -272,10 +293,10 @@ class Grains:
       A description of the porosity as a function of size.
     gsd : GrainSizeDistribution, optional
       The differential grain size distribution as a function of size.
-    
+
     """
 
-    def __init__(self, material, porosity=Solid(), gsd=PowerLaw(1.,0)):
+    def __init__(self, material, porosity=Solid(), gsd=PowerLaw(1., 0)):
         assert isinstance(material, Material)
         assert isinstance(porosity, PorosityModel)
         assert isinstance(gsd, GrainSizeDistribution)
@@ -297,32 +318,29 @@ class Grains:
           Grain mass in g.
 
         """
-        from .util import mass
 
         rho = self.material.rho0 * (1 - self.porosity(a))
-        
-        return mass(a, rho)
+
+        return util.mass(a, rho)
 
     def total_mass(self, arange):
         """Total mass over a range of radii weighted by the GSD.
-        
+
         Parameters
         ----------
         arange : two element array
           Lower and upper grain radii range over which to compute mass.
-          
+
         """
-        
+
         from numpy import pi
-        from .util import avint
 
         assert np.iterable(arange)
         assert len(arange) == 2
-        
+
         log_arange = np.log10(arange)
         n = max(log_arange.ptp(), 1) * 10000
         a = np.logspace(log_arange[0], log_arange[1], int(n))
         dmda = self.gsd(a) * self.mass(a)
-        
-        return avint(a, dmda, arange)
 
+        return util.avint(a, dmda, arange)
