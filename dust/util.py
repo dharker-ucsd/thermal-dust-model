@@ -15,7 +15,7 @@ def avint(x, y, xlim):
       2 or more.
     y : array
       The function values at each `x`.
-    xlim : float
+    xlim : list of float
       The integration limits, must be within the closed interval
       `x[0]` to `x[1]`.
 
