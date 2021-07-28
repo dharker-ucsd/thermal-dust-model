@@ -46,7 +46,8 @@ parser.add_argument('--fscale', type=int, default=5, help='Size of the frame sca
 parser.add_argument('--savefigure', action='store_true', help='Set to write out a PDF file of the figure named "fit-plot-figure-YYYMMDD-HHMMSS.pdf"')
 parser.add_argument('--savetofile', type=str, default='', help='Set to write out a PDF file of the figure named "fit-plot-figure-YYYMMDD-HHMMSS.pdf"')
 parser.add_argument('--annotate', type=list_of(str), help='Place text in upper left corner of each plot.')
-parser.add_argument('--tofitdata', help='Subset of data points used in the model fit.')
+parser.add_argument('--tofitdata', action='store_true', help='Plot the subset of data points used in the model fit.')
+parser.add_argument('--plot_order', action='store_true', help='If reading Spitzer data, plot the orders with colors.')
 
 
 args = parser.parse_args()
@@ -87,7 +88,8 @@ unc = unc.to(args.yunit, u.spectral_density(wave))
 #------------------------------------------------
 
 if args.tofitdata:
-    tofit = ascii.read(args.tofitdata)
+#    tofit = ascii.read(args.tofitdata)
+    
     if args.unit is None:
         try:
             unit = u.Unit(tofit.meta['flux density unit'])
@@ -209,21 +211,38 @@ plt.ylabel(ylabel, fontsize=args.fscale*2.5, fontweight='bold') #, **hfont)  # s
 
 # Set axis to log if flagged.
 if args.xlog:
-    ax.set_xscale("log", nonposx='clip')
+    ax.set_xscale("log", nonpositive='clip')
     f = matplotlib.ticker.FuncFormatter(lambda x, pos: '{:.0f}'.format(x))
     ax.xaxis.set_major_formatter(f)
     ax.xaxis.set_minor_formatter(f)
 if args.ylog:
-    ax.set_yscale("log")#, nonposx='clip')
+    ax.set_yscale("log")#, nonpositive='clip')
 
 # Annotate if desired
 if args.annotate != None:
     ax.text(0.92, 0.85, args.annotate[0], fontsize=args.fscale*2., fontweight='bold', horizontalalignment='right', verticalalignment='bottom', transform=ax.transAxes)
 
 # Plot the data
-ax.plot(wave.value, spec.value, 'ko', markersize=4) # plot data
-ax.plot(wave.value, spec.value, 'w.', markersize=2) # plot data
-ax.errorbar(wave.value, spec.value, yerr=unc.value, ecolor='k', fmt='none', capsize=2) # plot error bars
+if not args.plot_order:
+    ax.plot(wave.value, spec.value, 'ko', markersize=4) # plot data
+    ax.plot(wave.value, spec.value, 'w.', markersize=2) # plot data
+    ax.errorbar(wave.value, spec.value, yerr=unc.value, ecolor='k', fmt='none', capsize=2) # plot error bars
+else:
+    orders = ['SL2', 'SL3', 'SL1', 'LL2', 'LL3', 'LL1']
+    col_orders = ['blue', 'orange', 'green', 'red', 'purple', 'brown']
+    tabx = ascii.read(args.spectrum)
+    df = tabx.to_pandas()
+    for i, order in enumerate(orders):
+        wv = df.loc[lambda df: df['order'] == order]['wave']
+        fl = df.loc[lambda df: df['order'] == order]['fluxd']
+        un = df.loc[lambda df: df['order'] == order]['unc']
+        fl = fl * wv
+        un = un * wv
+        #ax.plot(wv, fl, color=col_orders[i], marker='.', markersize=4)
+        #ax.plot(wv, fl, color='white', marker='.', markersize=1)
+        ax.plot(wv, fl, color=col_orders[i], marker='o', markerfacecolor='white', markeredgecolor=col_orders[i], linestyle='None', markersize=2)
+        ax.errorbar(wv, fl, yerr=un, ecolor=col_orders[i], fmt='none', capsize=1, capthick=1, elinewidth=1) # plot error bars
+
 
 # Plot the TOFIT data if provided
 if args.tofitdata:
@@ -242,8 +261,11 @@ for i, mats in enumerate(materials):
         ax.plot(wmodel.value, mcols[i,:].value, color=colors[mats], linestyle=line_dash[i]) 
 
 
-# Plot the total model in red
-ax.plot(wmodel.value, tmodel.value, color='red')
+# Plot the total model in black or red
+if args.plot_order:
+    ax.plot(wmodel.value, tmodel.value, color='black')
+else:
+    ax.plot(wmodel.value, tmodel.value, color='red')
 
 plt.tight_layout()
 plt.draw()
