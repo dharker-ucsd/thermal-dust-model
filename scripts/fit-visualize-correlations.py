@@ -103,14 +103,18 @@ $D$ = {D}""".format(title=title, N=best.meta['GSD'].split()[1],
     return fig, pos
 
 
-def plot_spectrum(fig, spec, model):
+def plot_spectrum(fig, orig_spec, spec, model):
     last_ax = fig.axes[-1]
     bbox = fig.transFigure.inverted().transform(last_ax.bbox)
     ax = fig.add_axes(
         (bbox[1, 0] + 0.65 / 11, bbox[0, 1], 2.2 / 11, bbox[1, 1] - bbox[0, 1]))
 
+    if orig_spec:
+        orig_ac = np.interp(orig_spec['wave'], model['wave'], model['F(ac)'])
+        ax.scatter(orig_spec['wave'], orig_spec['fluxd'] /
+                   orig_ac, marker='.', color="tab:gray")
     ac = np.interp(spec['wave'], model['wave'], model['F(ac)'])
-    ax.scatter(spec['wave'], spec['fluxd'] / ac, marker='.')
+    ax.scatter(spec['wave'], spec['fluxd'] / ac, marker='.', color="tab:green")
 
     colors = {'ap': 'blue', 'ap50': 'blue', 'ao': 'cyan', 'ao50': 'cyan',
               'ac': 'darkorange', 'co': 'green', 'cp': 'magenta', 'other': 'black'}
@@ -131,8 +135,20 @@ def plot_spectrum(fig, spec, model):
         0.9,
         np.ceil((np.median(spec['fluxd'] / ac - 1) * 3 + 1) * 10) / 10
     )
+
+    if orig_spec:
+        orig_xlim = (np.floor(orig_spec['wave'].min() * 0.8),
+                     np.ceil(orig_spec['wave'].max() * 1.2))
+        xlim = min(xlim[0], orig_xlim[0]), max(xlim[1], orig_xlim[1])
+
+        orig_ymax = (
+            np.ceil((np.median(orig_spec['fluxd'] / orig_ac - 1) * 3 + 1)
+                    * 10) / 10
+        )
+        ylim = ylim[0], max(ylim[1], orig_ymax)
+
     ax.minorticks_on()
-    plt.setp(ax, xlim=xlim, yscale='linear', ylim=ylim)
+    plt.setp(ax, xlim=xlim, yscale='linear', ylim=ylim, ylabel='fluxd / AC')
 
 
 def param_distribution(ax, py, px, bins, range=None, image=True, contours=False):
@@ -166,7 +182,10 @@ parser.add_argument(
 
 )
 parser.add_argument(
-    '--spectrum', help='use this file for the comet spectrum; default is to replace "MCALL.fits" with "TOFIT.txt"'
+    '--spectrum', help='use this file for the comet spectrum; default is to replace "MCALL.fits" with "TOFIT.txt"; these data points are green'
+)
+parser.add_argument(
+    '--original-spectrum', help='use this file for the original spectrum; default is to inspect metadata of "TOFIT.txt" for "comet spectrum" with some path manipulation'
 )
 parser.add_argument('--contours', action='store_true',
                     help='plot contours')
@@ -202,10 +221,27 @@ if args.best:
         print('Warning: Best-fit file not found: {}'.format(best_file))
 
 spec = None
+spec_dir = None
 if args.spectrum:
     spec = ascii.read(args.spectrum)
+    spec_dir = os.path.dirname(args.spectrum)
 else:
     spec = ascii.read(args.mcall.replace("MCALL.fits", "TOFIT.txt"))
+    spec_dir = os.path.dirname(args.mcall)
+
+orig_spec = None
+if args.original_spectrum:
+    orig_spec = args.original_spectrum
+else:
+    orig_spec = spec.meta['comet spectrum']
+    if not os.path.exists(orig_spec):
+        # try same directory as spec
+        orig_spec = os.path.join(spec_dir, os.path.basename(orig_spec))
+        if not os.path.exists(orig_spec):
+            # give up
+            orig_spec = None
+if orig_spec:
+    orig_spec = ascii.read(orig_spec)
 
 model = None
 if args.best_model:
@@ -228,5 +264,5 @@ for col in args.parameters.split(','):
 
 if len(colnames) > 1:
     fig, axes = plot_columns(1, tab, colnames, **opts)
-    plot_spectrum(fig, spec, model)
+    plot_spectrum(fig, orig_spec, spec, model)
     fig.savefig('{}-comp-v-comp.{}'.format(args.prefix, args.format))
