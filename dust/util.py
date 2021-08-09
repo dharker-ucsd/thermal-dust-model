@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def avint(x, y, xlim):
     """Integrate tabulated function with arbitrarily-spaced abscissas.
 
@@ -14,7 +15,7 @@ def avint(x, y, xlim):
       2 or more.
     y : array
       The function values at each `x`.
-    xlim : float
+    xlim : list of float
       The integration limits, must be within the closed interval
       `x[0]` to `x[1]`.
 
@@ -46,7 +47,7 @@ def avint(x, y, xlim):
     assert (x[0] <= xlim[0]) and (xlim[0] <= x[-1]), "xlim must be within x"
     assert (x[0] <= xlim[1]) and (xlim[1] <= x[-1]), "xlim must be within x"
 
-    z = 0  # the result    
+    z = 0  # the result
 
     if xlim[0] == xlim[1]:
         return z
@@ -59,12 +60,15 @@ def avint(x, y, xlim):
         z = 0.5 * (fl + fr) * (max(xlim) - min(xlim))
     else:
         # overlapping parabolas
-        assert min(xlim) < x[-2], "Less than three function values between the limits of integration."
-        assert max(xlim) > x[2], "Less than three function values between the limits of integration."
+        assert min(
+            xlim) < x[-2], "Less than three function values between the limits of integration."
+        assert max(
+            xlim) > x[2], "Less than three function values between the limits of integration."
 
         left = np.flatnonzero(x >= min(xlim))[0]
         right = np.flatnonzero(x <= max(xlim))[-1]
-        assert (right - left) >= 2, "Less than three function values between the limits of integration."
+        assert (
+            right - left) >= 2, "Less than three function values between the limits of integration."
 
         istart = left
         if left == 0:
@@ -114,7 +118,7 @@ def avint(x, y, xlim):
             CA = A
             CB = B
             CC = C
-            
+
             syl = syu
             syl2 = syu2
             syl3 = syu3
@@ -123,14 +127,15 @@ def avint(x, y, xlim):
         z += (CA * (syu**3 - syl3) / 3
               + CB * 0.5 * (syu**2 - syl2)
               + CC * (syu - syl))
-        
+
     if xlim[1] < xlim[0]:
         # the integration is backwards, which is OK
         return -z
     else:
         return z
 
-def bbody(wave,temp):
+
+def bbody(wave, temp):
     """Compute the Planck funcion in W cm^-2 micron^-1 st^-1
 
     Parameters
@@ -155,7 +160,32 @@ def bbody(wave,temp):
     bbflux[good] = c1/(wave[good]**5 * (np.exp(val[good])-1.))
     bbflux = bbflux * 1e-4                  # W cm^-2 micron^-1 st^-1
 
-    return bbflux 
+    return bbflux
+
+
+def hanner_M(a0, N, ap):
+    """Small grain slope of the Hanner modified power law.
+
+      `M = N * (ap / a0 - 1)`
+
+    Parameters
+    ----------
+    a0 : float
+      The radius of the smallest grain unit.
+    N : float
+      Large grain slope
+    M : float
+      Small grain slope
+
+    Returns
+    -------
+    ap : float
+      Peak grain radius.
+
+    """
+
+    return N * (ap / a0 - 1)
+
 
 def hanner_ap(a0, N, M):
     """Peak grain radius of the Hanner modified power law.
@@ -179,6 +209,7 @@ def hanner_ap(a0, N, M):
     """
 
     return a0 * (N + M) / N
+
 
 def hanner_gsd(a, a0, N, M):
     """Hanner (modified power law) differential grain size distribution.
@@ -213,6 +244,7 @@ def hanner_gsd(a, a0, N, M):
     dnda = dn / dnmax
     return dnda
 
+
 def interp_model2comet(wave_comet, wave_model, fluxd_model):
     """Interpolate the model spectrum to the same wavelength grid as the comet
     spectrum.
@@ -235,31 +267,33 @@ def interp_model2comet(wave_comet, wave_model, fluxd_model):
     """
 
     from scipy import interpolate
-    
+
     tck = interpolate.splrep(wave_model, fluxd_model, s=0)
-    
+
     fluxd_model_interp = interpolate.splev(wave_comet, tck, der=0)
-    
+
     return fluxd_model_interp
+
 
 def mass(a, rho):
     """Mass for grain of radius `a` and density `rho`.
-    
+
     Parameters
     ----------
     a : float or array-like
       The grain radii over which to evaluate the mass in μm.
     rho : float
       The density of the grain in g/cm3.
-      
+
     Returns
     -------
     m : float or ndarray
       Grain mass in g.
     """
-        
+
     from numpy import pi
     return 4e-12 / 3 * pi * a**3 * rho
+
 
 def power_law(a, a0, powlaw):
     """Power Law differential grain size distribution.
@@ -267,7 +301,7 @@ def power_law(a, a0, powlaw):
     The GSD is normalized by the smallest grain size.
 
       `dn/da = (a0 / a)**powlaw`
-    
+
     Parameters
     ----------
     a : float or array-like
@@ -285,6 +319,5 @@ def power_law(a, a0, powlaw):
       The GSD at each `a`.
 
     """
-    
+
     return (a0 / np.array(a))**powlaw
-    
